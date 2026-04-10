@@ -10,9 +10,6 @@ const firebaseConfig = {
     measurementId: "G-61DFP9M8BQ"
 };
 
-// Agora Video Call Configuration
-const AGORA_APP_ID = "b9e27270e1d74f7d9bcf8d18b9a1c3a4";
-
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
@@ -26,12 +23,4 @@ const UPLOAD_PRESET = 'go_45xx';
 // Admin Account
 const ADMIN_EMAIL = 'jasim28v@gmail.com';
 
-// إعدادات المستخدم الافتراضية
-const DEFAULT_SETTINGS = {
-    soundEffects: true,
-    darkMode: false,
-    notifications: true,
-    language: 'ar'
-};
-
-console.log("✅ X Platform Ready with 15+ Features");
+console.log("✅ X Platform Ready - Clone Design");
