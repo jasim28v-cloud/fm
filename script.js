@@ -1,12 +1,9 @@
-// ==================== X Platform - المتغيرات العامة ====================
+// ==================== X Platform - Script ====================
 let currentUser = null;
 let currentPostId = null;
 let currentChatUser = null;
 let currentProfileUser = null;
 let selectedMediaFile = null;
-let editingPostId = null;
-let currentReportPostId = null;
-let selectedReportReason = null;
 let allPostsCache = [];
 let currentDisplayCount = 0;
 let isLoadingMore = false;
@@ -14,7 +11,7 @@ let hasMorePosts = true;
 let badWordsList = [];
 const POSTS_PER_BATCH = 10;
 
-// ==================== Helper Functions ====================
+// Helper Functions
 function showToast(message, duration = 2000) {
     const toast = document.getElementById('customToast');
     if (!toast) return;
@@ -48,6 +45,14 @@ function extractHashtags(text) {
     return hashtags.map(tag => tag.substring(1));
 }
 
+function updateCharCounter() {
+    const textarea = document.getElementById('postText');
+    const counter = document.getElementById('charCounter');
+    const length = textarea.value.length;
+    counter.textContent = `${length} / 280`;
+    counter.classList.toggle('warning', length > 260);
+}
+
 function containsBadWords(text) {
     if (!text || badWordsList.length === 0) return false;
     const lowerText = text.toLowerCase();
@@ -65,7 +70,7 @@ function filterBadWords(text) {
     return filtered;
 }
 
-// ==================== Upload to Cloudinary ====================
+// Upload to Cloudinary
 async function uploadToCloudinary(file) {
     const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`;
     const formData = new FormData();
@@ -125,31 +130,13 @@ function removeSelectedMedia() {
     document.getElementById('postVideo').value = '';
 }
 
-// ==================== Bad Words ====================
+// Bad Words
 async function loadBadWordsList() {
     const snapshot = await db.ref('badWords').once('value');
     badWordsList = snapshot.val() ? Object.values(snapshot.val()) : [];
 }
 
-async function addBadWord(word) {
-    if (!word.trim()) return;
-    await db.ref('badWords').push(word.trim().toLowerCase());
-    await loadBadWordsList();
-    showToast(`✅ تمت إضافة: ${word}`);
-}
-
-async function removeBadWord(wordId, word) {
-    await db.ref(`badWords/${wordId}`).remove();
-    await loadBadWordsList();
-    showToast(`🗑️ تم حذف: ${word}`);
-}
-
-function showAddBadWordModal() {
-    const word = prompt('أدخل الكلمة الممنوعة:');
-    if (word) addBadWord(word);
-}
-
-// ==================== Create Post ====================
+// Create Post
 async function createPost() {
     let text = document.getElementById('postText')?.value;
     if (containsBadWords(text)) return showToast('⚠️ المنشور يحتوي على كلمات ممنوعة');
@@ -218,7 +205,7 @@ async function savePost(postId) {
     refreshFeedCache();
 }
 
-// ==================== Comments ====================
+// Comments
 async function openComments(postId) {
     currentPostId = postId;
     document.getElementById('commentsPanel').classList.add('open');
@@ -256,7 +243,7 @@ async function addComment() {
 
 function closeComments() { document.getElementById('commentsPanel').classList.remove('open'); }
 
-// ==================== Feed ====================
+// Feed
 async function loadAllPostsToCache() {
     const snapshot = await db.ref('posts').once('value');
     const posts = snapshot.val();
@@ -339,7 +326,7 @@ async function loadMorePosts() {
 
 async function refreshFeedCache() { await loadAllPostsToCache(); }
 
-// ==================== Profile ====================
+// Profile
 async function openMyProfile() { if (currentUser) openProfile(currentUser.uid); }
 async function openProfile(userId) {
     currentProfileUser = userId;
@@ -411,7 +398,7 @@ function openEditProfileModal() {
     }
 }
 
-// ==================== Chat ====================
+// Chat
 async function openChat(userId) {
     const snapshot = await db.ref(`users/${userId}`).once('value');
     currentChatUser = snapshot.val();
@@ -457,7 +444,7 @@ async function openConversations() {
 }
 function closeConversations() { document.getElementById('conversationsPanel').classList.remove('open'); }
 
-// ==================== Notifications ====================
+// Notifications
 async function openNotifications() {
     const container = document.getElementById('notificationsList');
     const snapshot = await db.ref(`notifications/${currentUser.uid}`).once('value');
@@ -467,7 +454,7 @@ async function openNotifications() {
 }
 function closeNotifications() { document.getElementById('notificationsPanel').classList.remove('open'); }
 
-// ==================== Search ====================
+// Search
 async function searchAll() {
     const query = document.getElementById('searchInput')?.value.toLowerCase();
     if (!query) return;
@@ -480,7 +467,7 @@ function openSearch() { document.getElementById('searchPanel').classList.add('op
 function closeSearch() { document.getElementById('searchPanel').classList.remove('open'); }
 async function searchHashtag(tag) { openSearch(); document.getElementById('searchInput').value = `#${tag}`; searchAll(); }
 
-// ==================== Saved Posts ====================
+// Saved Posts
 async function openSavedPosts() {
     const container = document.getElementById('savedPostsGrid');
     const snapshot = await db.ref(`savedPosts/${currentUser.uid}`).once('value');
@@ -499,16 +486,16 @@ async function openSavedPosts() {
 }
 function closeSavedPosts() { document.getElementById('savedPostsPanel').classList.remove('open'); }
 
-// ==================== Trending ====================
+// Trending
 async function loadTrendingHashtags() {
     const snapshot = await db.ref('hashtags').once('value');
     const hashtags = snapshot.val();
     if (!hashtags) return;
     const trending = Object.entries(hashtags).map(([tag, posts]) => ({ tag, count: Object.keys(posts).length })).sort((a,b) => b.count - a.count).slice(0, 5);
-    document.getElementById('trendingList').innerHTML = trending.map((t, i) => `<div class="trending-item" onclick="searchHashtag('${t.tag}')"><div class="trending-category">الأكثر تداولاً</div><div class="trending-hashtag">#${t.tag}</div><div class="trending-count">${t.count} منشور</div></div>`).join('');
+    document.getElementById('trendingList').innerHTML = trending.map(t => `<div class="trending-item" onclick="searchHashtag('${t.tag}')"><div class="trending-category">الأكثر تداولاً</div><div class="trending-hashtag">#${t.tag}</div><div class="trending-count">${t.count} منشور</div></div>`).join('');
 }
 
-// ==================== Admin Panel ====================
+// Admin
 async function openAdminPanel() {
     if (currentUser.email !== ADMIN_EMAIL && !currentUser.isAdmin) return showToast('غير مصرح');
     const badWordsSnap = await db.ref('badWords').once('value');
@@ -524,37 +511,21 @@ async function openAdminPanel() {
     document.getElementById('adminPanel').classList.add('open');
 }
 
-async function verifyUser(userId) {
-    await db.ref(`users/${userId}`).update({ verified: true });
-    showToast('✅ تم التوثيق');
-    openAdminPanel();
-}
-
-async function deleteUser(userId) {
-    if (confirm('حذف المستخدم؟')) {
-        await db.ref(`users/${userId}`).remove();
-        showToast('تم الحذف');
-        openAdminPanel();
-    }
-}
-
+async function verifyUser(userId) { await db.ref(`users/${userId}`).update({ verified: true }); showToast('✅ تم التوثيق'); openAdminPanel(); }
+async function deleteUser(userId) { if (confirm('حذف المستخدم؟')) { await db.ref(`users/${userId}`).remove(); showToast('تم الحذف'); openAdminPanel(); } }
 function closeAdmin() { document.getElementById('adminPanel').classList.remove('open'); }
+async function addBadWord(word) { if (!word.trim()) return; await db.ref('badWords').push(word.trim().toLowerCase()); await loadBadWordsList(); showToast(`✅ تمت إضافة: ${word}`); }
+async function removeBadWord(wordId, word) { await db.ref(`badWords/${wordId}`).remove(); await loadBadWordsList(); showToast(`🗑️ تم حذف: ${word}`); }
+function showAddBadWordModal() { const word = prompt('أدخل الكلمة الممنوعة:'); if (word) addBadWord(word); }
 
-// ==================== UI Helpers ====================
-function openCompose() { document.getElementById('composeModal').classList.add('open'); }
+// UI Helpers
+function openCompose() { document.getElementById('composeModal').classList.add('open'); updateCharCounter(); }
 function closeCompose() { document.getElementById('composeModal').classList.remove('open'); }
 function addPollToCompose() { showToast('الاستطلاعات قريباً'); }
-function toggleTheme() {
-    document.body.classList.toggle('light-mode');
-    localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-}
+function toggleTheme() { document.body.classList.toggle('light-mode'); localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark'); }
 function switchTab(tab) { if (tab === 'home') refreshFeedCache(); }
 
-async function logout() {
-    await auth.signOut();
-    localStorage.removeItem('auth_logged_in');
-    window.location.href = 'auth.html';
-}
+async function logout() { await auth.signOut(); localStorage.removeItem('auth_logged_in'); window.location.href = 'auth.html'; }
 
 function updateSidebarUser() {
     if (!currentUser) return;
@@ -564,7 +535,7 @@ function updateSidebarUser() {
     avatar.innerHTML = currentUser.avatar ? `<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;">` : '<i class="fa-solid fa-user"></i>';
 }
 
-// ==================== Auth State ====================
+// Auth State
 const initLoader = document.getElementById('initLoader');
 auth.onAuthStateChanged(async (user) => {
     if (initLoader) { initLoader.style.opacity = '0'; setTimeout(() => initLoader.style.display = 'none', 300); }
