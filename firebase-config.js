@@ -23,7 +23,15 @@ const storage = firebase.storage();
 const CLOUD_NAME = 'dmdrxi9xl';
 const UPLOAD_PRESET = 'go_45xx';
 
-// Admin Account (للحفاظ على لوحة التحكم)
+// Admin Account
 const ADMIN_EMAIL = 'jasim28v@gmail.com';
 
-console.log("✅ X Platform Ready");
+// إعدادات المستخدم الافتراضية
+const DEFAULT_SETTINGS = {
+    soundEffects: true,
+    darkMode: false,
+    notifications: true,
+    language: 'ar'
+};
+
+console.log("✅ X Platform Ready with 15+ Features");
