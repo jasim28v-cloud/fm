@@ -54,7 +54,6 @@
         body.light-mode ::-webkit-scrollbar-track { background: #fff; }
         body.light-mode ::-webkit-scrollbar-thumb { background: #cfd9de; }
         
-        /* Layout */
         #mainApp { display: none; min-height: 100vh; }
         
         .app-layout {
@@ -64,7 +63,6 @@
             min-height: 100vh;
         }
         
-        /* Left Sidebar */
         .sidebar {
             width: 275px;
             position: sticky;
@@ -114,7 +112,12 @@
         .user-name-mini { font-weight: 700; font-size: 15px; }
         .user-handle-mini { color: #71767b; font-size: 14px; }
         
-        /* Main Feed */
+        .logout-btn {
+            background: none; border: none; color: #71767b; font-size: 18px;
+            cursor: pointer; padding: 8px; border-radius: 50%;
+        }
+        .logout-btn:hover { background: rgba(244, 33, 46, 0.1); color: #f4212e; }
+        
         .feed-container {
             width: 600px;
             border-left: 1px solid #2f3336;
@@ -130,25 +133,23 @@
         body.light-mode .feed-header { background: rgba(255, 255, 255, 0.85); }
         .feed-header h2 { font-size: 20px; font-weight: 700; }
         
-        /* Post Card */
         .post-card {
             padding: 12px 16px; border-bottom: 1px solid #2f3336;
             cursor: pointer; transition: background 0.2s;
         }
         .post-card:hover { background: rgba(255, 255, 255, 0.03); }
-        .post-card.pinned { border-right: 3px solid #1d9bf0; }
         
         .post-header { display: flex; gap: 12px; }
         .post-avatar {
             width: 48px; height: 48px; border-radius: 50%; background: #1d9bf0;
-            overflow: hidden; flex-shrink: 0;
+            overflow: hidden; flex-shrink: 0; cursor: pointer;
         }
         .post-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .post-content { flex: 1; }
         .post-user-row {
             display: flex; align-items: center; gap: 4px; margin-bottom: 4px;
         }
-        .post-username { font-weight: 700; }
+        .post-username { font-weight: 700; cursor: pointer; }
         .post-handle, .post-time { color: #71767b; font-size: 15px; }
         .verified-badge { color: #1d9bf0; font-size: 18px; margin-right: 2px; }
         .post-text { font-size: 15px; line-height: 1.5; margin-bottom: 12px; }
@@ -170,11 +171,6 @@
         .post-action.liked { color: #f91880; }
         .post-action.saved { color: #1d9bf0; }
         
-        .post-likes, .post-views {
-            color: #71767b; font-size: 13px; margin-top: 8px;
-        }
-        
-        /* Right Sidebar */
         .trending-sidebar {
             width: 350px; position: sticky; top: 0; height: 100vh;
             padding: 12px 16px; overflow-y: auto;
@@ -208,7 +204,6 @@
         .trending-hashtag { font-weight: 700; font-size: 15px; margin: 2px 0; }
         .trending-count { color: #71767b; font-size: 13px; }
         
-        /* Compose Modal */
         .compose-modal {
             position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(4px); z-index: 200; display: flex;
@@ -261,9 +256,7 @@
             background: #1d9bf0; color: white; border: none; border-radius: 9999px;
             padding: 10px 20px; font-size: 15px; font-weight: 700; cursor: pointer;
         }
-        .publish-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         
-        /* Panels */
         .chat-panel {
             position: fixed; inset: 0; background: #000; z-index: 400;
             transform: translateX(100%); transition: transform 0.3s ease;
@@ -299,7 +292,6 @@
             outline: none; font-size: 15px;
         }
         
-        /* Modal */
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
             z-index: 600; display: flex; align-items: center; justify-content: center;
@@ -311,7 +303,6 @@
             max-width: 400px; border: 1px solid #2f3336;
         }
         
-        /* Toast */
         #customToast {
             position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
             background: #1d9bf0; color: white; padding: 12px 24px;
@@ -319,12 +310,10 @@
             opacity: 0; transition: opacity 0.3s; white-space: nowrap;
         }
         
-        /* Skeleton */
         .skeleton-post { padding: 16px; border-bottom: 1px solid #2f3336; }
         .skeleton { background: #202327; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
-        /* Responsive */
         @media (max-width: 1000px) {
             .trending-sidebar { display: none; }
             .sidebar { width: 88px; }
@@ -360,13 +349,13 @@
                 <button class="nav-item" onclick="openMyProfile()"><i class="fa-regular fa-user"></i> <span>الملف الشخصي</span></button>
             </div>
             <button class="post-btn" onclick="openCompose()">نشر</button>
-            <div class="user-profile-mini" onclick="openMyProfile()">
-                <div class="user-avatar-mini" id="sidebarAvatar"></div>
-                <div class="user-info-mini">
+            <div class="user-profile-mini">
+                <div class="user-avatar-mini" id="sidebarAvatar" onclick="openMyProfile()"></div>
+                <div class="user-info-mini" onclick="openMyProfile()">
                     <div class="user-name-mini" id="sidebarName"></div>
                     <div class="user-handle-mini" id="sidebarHandle"></div>
                 </div>
-                <i class="fa-solid fa-ellipsis" onclick="event.stopPropagation(); showLogoutMenu()"></i>
+                <button class="logout-btn" onclick="logout()" title="تسجيل الخروج"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
             </div>
         </div>
         
@@ -488,7 +477,7 @@
     <!-- Other Panels -->
     <div id="conversationsPanel" class="chat-panel"><div class="chat-header"><button onclick="closeConversations()"><i class="fa-solid fa-arrow-left"></i></button><h3>الرسائل</h3></div><div id="conversationsList" style="padding: 12px;"></div></div>
     <div id="notificationsPanel" class="chat-panel"><div class="chat-header"><button onclick="closeNotifications()"><i class="fa-solid fa-arrow-left"></i></button><h3>الإشعارات</h3></div><div id="notificationsList" style="padding: 12px;"></div></div>
-    <div id="searchPanel" class="chat-panel"><div class="chat-header"><button onclick="closeSearch()"><i class="fa-solid fa-arrow-left"></i></button><h3>بحث</h3></div><input type="text" id="searchInput" class="chat-input" style="margin: 12px; width: auto;" placeholder="بحث..."><div id="searchResults" style="padding: 12px;"></div></div>
+    <div id="searchPanel" class="chat-panel"><div class="chat-header"><button onclick="closeSearch()"><i class="fa-solid fa-arrow-left"></i></button><h3>بحث</h3></div><input type="text" id="searchInput" class="chat-input" style="margin: 12px; width: auto;" placeholder="بحث..." onkeyup="searchAll()"><div id="searchResults" style="padding: 12px;"></div></div>
     <div id="savedPostsPanel" class="chat-panel"><div class="chat-header"><button onclick="closeSavedPosts()"><i class="fa-solid fa-arrow-left"></i></button><h3>المحفوظات</h3></div><div id="savedPostsGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;"></div></div>
     <div id="adminPanel" class="chat-panel"><div class="chat-header"><button onclick="closeAdmin()"><i class="fa-solid fa-arrow-left"></i></button><h3>لوحة التحكم</h3></div><div style="padding: 16px;"><div id="adminStats" style="display: flex; gap: 12px;"></div><h4>الكلمات الممنوعة</h4><div id="adminBadWordsList"></div><h4 style="margin-top: 16px;">المستخدمين</h4><div id="adminUsersList"></div></div></div>
     
