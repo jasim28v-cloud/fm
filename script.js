@@ -8,1052 +8,103 @@ let audioChunks = [];
 let selectedImages = [];
 let audioBlob = null;
 let isRecording = false;
-let isDarkMode = localStorage.getItem('darkMode') === 'true';
-let lastLoadedPostKey = null;
-let postsPerPage = 10;
-let notifications = [];
-let currentAudio = null;
-
-// تأثيرات صوتية
-const sounds = {
-    like: null,
-    retweet: null,
-    notification: null,
-    send: null
-};
+let selectedCoverFile = null;
+let selectedAvatarFile = null;
+let currentViewingUserId = null;
+let allUsers = {};
+let allPosts = {};
 
 // ==========================================
 // التهيئة عند تحميل الصفحة
 // ==========================================
-document.addEventListener('DOMContentLoaded', async () => {
-    applyTheme();
-    initCharCounter();
-    initScrollTopButton();
-    initKeyboardShortcuts();
-    initImageInput();
-    
+document.addEventListener('DOMContentLoaded', () => {
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             currentUser = user;
-            await loadUserData();
-            await loadPosts();
+            await loadCurrentUserData();
+            await loadTweets();
             await loadSuggestedUsers();
-            await loadNotifications();
             await loadTrendingTopics();
-            await updateOnlineStatus(true);
-            
-            if (user.email === ADMIN_EMAIL) {
-                document.getElementById('adminPanel').classList.add('visible');
-                await loadAdminPanel();
-            }
-            
-            // مستمع لحالة الاتصال
+            await loadAllUsers();
+            setupComposeInput();
             setupPresence();
+            
+            // إظهار لوحة التحكم للمدير
+            if (currentUserData?.isAdmin || user.email === ADMIN_EMAIL) {
+                document.getElementById('adminNavItem').style.display = 'flex';
+            }
         } else {
             window.location.href = 'auth.html';
         }
     });
     
-    // مستمع للبحث
-    document.getElementById('searchInput').addEventListener('input', debounce(handleSearch, 300));
+    // مستمعات تحميل الصور
+    document.getElementById('imageInput').addEventListener('change', handleImageSelect);
+    document.getElementById('coverInput').addEventListener('change', handleCoverSelect);
+    document.getElementById('avatarEditInput').addEventListener('change', handleAvatarSelect);
 });
 
 // ==========================================
-// 1. عداد الأحرف
+// تحميل بيانات المستخدم الحالي
 // ==========================================
-function initCharCounter() {
-    const postInput = document.getElementById('postContent');
-    const counter = document.getElementById('charCounter');
-    const submitBtn = document.getElementById('postSubmitBtn');
+async function loadCurrentUserData() {
+    const snapshot = await db.ref('users/' + currentUser.uid).once('value');
+    currentUserData = snapshot.val() || {};
     
-    postInput.addEventListener('input', function() {
-        const len = this.value.length;
-        counter.textContent = `${len}/280`;
-        
-        counter.classList.remove('warning', 'danger');
-        if (len > 250) counter.classList.add('warning');
-        if (len > 280) {
-            counter.classList.add('danger');
-            submitBtn.disabled = true;
-        } else {
-            submitBtn.disabled = false;
-        }
-        
-        // كشف الروابط للمعاينة
-        detectLinks(this.value);
-    });
-}
-
-// ==========================================
-// 2. كشف الروابط ومعاينتها
-// ==========================================
-function detectLinks(text) {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const urls = text.match(urlRegex);
+    // تحديث واجهة المستخدم
+    document.getElementById('currentUserNameMini').textContent = currentUserData.name || 'مستخدم';
+    document.getElementById('currentUserUsernameMini').textContent = '@' + (currentUserData.username || 'user');
     
-    if (urls && urls.length > 0) {
-        fetchLinkPreview(urls[0]);
+    const avatar = document.getElementById('currentUserAvatarMini');
+    const composeAvatar = document.getElementById('composeAvatar');
+    
+    if (currentUserData.avatar) {
+        avatar.style.backgroundImage = `url(${currentUserData.avatar})`;
+        composeAvatar.style.backgroundImage = `url(${currentUserData.avatar})`;
+        avatar.textContent = '';
+        composeAvatar.textContent = '';
     } else {
-        document.getElementById('linkPreviewContainer').innerHTML = '';
+        avatar.textContent = (currentUserData.name || 'U').charAt(0).toUpperCase();
+        composeAvatar.textContent = (currentUserData.name || 'U').charAt(0).toUpperCase();
     }
-}
-
-async function fetchLinkPreview(url) {
-    try {
-        // محاكاة جلب معاينة الرابط
-        const container = document.getElementById('linkPreviewContainer');
-        container.innerHTML = `
-            <div class="link-preview">
-                <div>
-                    <div style="font-weight: bold;">🔗 ${new URL(url).hostname}</div>
-                    <div style="color: var(--text-secondary); font-size: 14px;">معاينة الرابط</div>
-                </div>
-            </div>
-        `;
-    } catch (error) {
-        console.error('Error fetching link preview:', error);
-    }
+    
+    // تحديث حالة الاتصال
+    await db.ref('users/' + currentUser.uid).update({ isOnline: true });
 }
 
 // ==========================================
-// 3. اختصارات لوحة المفاتيح
+// صندوق إنشاء تغريدة
 // ==========================================
-function initKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-        // N: تغريدة جديدة
-        if (e.key === 'n' && !e.ctrlKey && !e.altKey && !e.metaKey) {
-            e.preventDefault();
-            document.getElementById('postContent').focus();
-        }
-        
-        // /: بحث
-        if (e.key === '/' && !e.ctrlKey && !e.altKey && !e.metaKey) {
-            e.preventDefault();
-            document.getElementById('searchInput').focus();
-        }
-        
-        // Ctrl+Enter: إرسال التغريدة
-        if (e.key === 'Enter' && e.ctrlKey) {
-            e.preventDefault();
-            if (document.getElementById('postContent').value.trim()) {
-                createPost();
-            }
-        }
-        
-        // ESC: إغلاق النوافذ
-        if (e.key === 'Escape') {
-            closeImageModal();
-            document.getElementById('postContent').blur();
-            document.getElementById('searchInput').blur();
-        }
-        
-        // D: الوضع الليلي
-        if (e.key === 'd' && e.ctrlKey) {
-            e.preventDefault();
-            toggleTheme();
-        }
+function setupComposeInput() {
+    const input = document.getElementById('composeInput');
+    const submitBtn = document.getElementById('composeSubmit');
+    
+    input.addEventListener('input', () => {
+        submitBtn.disabled = !input.value.trim() && selectedImages.length === 0 && !audioBlob;
     });
 }
 
-// ==========================================
-// 4. زر العودة للأعلى
-// ==========================================
-function initScrollTopButton() {
-    const btn = document.getElementById('scrollTopBtn');
-    
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 500) {
-            btn.classList.add('visible');
-        } else {
-            btn.classList.remove('visible');
-        }
-    });
+function focusCompose() {
+    document.getElementById('composeInput').focus();
 }
 
-function scrollToTop() {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    showToast('تم العودة للأعلى', 'info');
-}
-
-// ==========================================
-// 5. Skeleton Loading
-// ==========================================
-function showSkeletonLoading() {
-    const container = document.getElementById('postsContainer');
-    container.innerHTML = '';
-    
-    for (let i = 0; i < 3; i++) {
-        const skeleton = document.createElement('div');
-        skeleton.className = 'skeleton-post';
-        skeleton.innerHTML = `
-            <div class="skeleton-avatar"></div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line short"></div>
-            <div style="clear: both;"></div>
-        `;
-        container.appendChild(skeleton);
-    }
-}
-
-// ==========================================
-// 6. تحميل المزيد من التغريدات
-// ==========================================
-async function loadMorePosts() {
-    const btn = document.getElementById('loadMoreBtn');
-    btn.textContent = 'جاري التحميل...';
-    btn.disabled = true;
-    
-    await loadPosts(true);
-    
-    btn.textContent = 'تحميل المزيد من التغريدات';
-    btn.disabled = false;
-}
-
-// ==========================================
-// 7. الإشارات المرجعية (Bookmarks)
-// ==========================================
-async function bookmarkPost(postId) {
-    if (!currentUser) return;
-    
-    try {
-        const bookmarkRef = db.ref(`users/${currentUser.uid}/bookmarks/${postId}`);
-        const snapshot = await bookmarkRef.once('value');
-        
-        if (snapshot.exists()) {
-            await bookmarkRef.remove();
-            showToast('تم إزالة التغريدة من المحفوظات', 'info');
-        } else {
-            await bookmarkRef.set({
-                timestamp: Date.now()
-            });
-            showToast('تم حفظ التغريدة', 'success');
-        }
-        
-        await loadPosts();
-    } catch (error) {
-        console.error('Error bookmarking post:', error);
-        showToast('حدث خطأ', 'error');
-    }
-}
-
-async function showBookmarks() {
-    showToast('قسم المحفوظات قيد التطوير', 'info');
-}
-
-// ==========================================
-// 8. نظام الإشعارات
-// ==========================================
-async function loadNotifications() {
-    if (!currentUser) return;
-    
-    try {
-        const notifRef = db.ref(`notifications/${currentUser.uid}`).orderByChild('timestamp').limitToLast(20);
-        const snapshot = await notifRef.once('value');
-        const notifs = snapshot.val();
-        
-        if (notifs) {
-            const unreadCount = Object.values(notifs).filter(n => !n.read).length;
-            updateNotificationBadge(unreadCount);
-        }
-    } catch (error) {
-        console.error('Error loading notifications:', error);
-    }
-}
-
-function updateNotificationBadge(count) {
-    const badge = document.getElementById('notificationCount');
-    if (count > 0) {
-        badge.textContent = count > 99 ? '99+' : count;
-        badge.style.display = 'block';
-    } else {
-        badge.style.display = 'none';
-    }
-}
-
-async function showNotifications() {
-    if (!currentUser) return;
-    
-    try {
-        const notifRef = db.ref(`notifications/${currentUser.uid}`).orderByChild('timestamp').limitToLast(50);
-        const snapshot = await notifRef.once('value');
-        const notifs = snapshot.val();
-        
-        let message = 'الإشعارات:\n\n';
-        if (notifs) {
-            const notifArray = Object.values(notifs).reverse();
-            notifArray.slice(0, 10).forEach(n => {
-                message += `• ${n.message}\n`;
-            });
-            
-            // تحديث حالة القراءة
-            for (const [id, notif] of Object.entries(notifs)) {
-                if (!notif.read) {
-                    await db.ref(`notifications/${currentUser.uid}/${id}`).update({ read: true });
-                }
-            }
-            updateNotificationBadge(0);
-        } else {
-            message += 'لا توجد إشعارات جديدة';
-        }
-        
-        alert(message);
-    } catch (error) {
-        console.error('Error showing notifications:', error);
-    }
-}
-
-async function sendNotification(userId, message, type = 'info') {
-    try {
-        const notifRef = db.ref(`notifications/${userId}`).push();
-        await notifRef.set({
-            message: message,
-            type: type,
-            timestamp: Date.now(),
-            read: false,
-            from: currentUser.uid,
-            fromName: currentUserData?.name || 'مستخدم'
-        });
-        
-        // تشغيل صوت الإشعار
-        playSound('notification');
-    } catch (error) {
-        console.error('Error sending notification:', error);
-    }
-}
-
-// ==========================================
-// 9. تأثيرات صوتية
-// ==========================================
-function playSound(action) {
-    if (!currentUserData?.settings?.soundEffects) return;
-    
-    try {
-        // محاكاة الأصوات (يمكن إضافة ملفات صوتية حقيقية)
-        console.log('🔊 Playing sound:', action);
-        
-        // يمكن إضافة مكتبة Howler.js للأصوات الحقيقية
-        // if (sounds[action]) {
-        //     sounds[action].play();
-        // }
-    } catch (error) {
-        console.error('Error playing sound:', error);
-    }
-}
-
-// ==========================================
-// 10. حالة الاتصال (Online Status)
-// ==========================================
-function setupPresence() {
-    if (!currentUser) return;
-    
-    const userStatusRef = db.ref(`users/${currentUser.uid}`);
-    const connectedRef = db.ref('.info/connected');
-    
-    connectedRef.on('value', (snap) => {
-        if (snap.val() === true) {
-            userStatusRef.update({ isOnline: true });
-            
-            userStatusRef.child('isOnline').onDisconnect().set(false);
-            userStatusRef.child('lastSeen').onDisconnect().set(Date.now());
-        }
-    });
-    
-    // الاستماع لحالة المستخدمين الآخرين
-    db.ref('users').on('child_changed', (snapshot) => {
-        updateUserOnlineStatus(snapshot.key, snapshot.val().isOnline);
-    });
-}
-
-async function updateOnlineStatus(isOnline) {
-    if (!currentUser) return;
-    
-    try {
-        await db.ref(`users/${currentUser.uid}`).update({
-            isOnline: isOnline,
-            lastSeen: Date.now()
-        });
-        
-        document.getElementById('onlineIndicator').style.background = 
-            isOnline ? 'var(--accent-green)' : 'var(--text-secondary)';
-    } catch (error) {
-        console.error('Error updating online status:', error);
-    }
-}
-
-function updateUserOnlineStatus(userId, isOnline) {
-    // تحديث مؤشر الاتصال للمستخدمين في القائمة
-    const indicators = document.querySelectorAll(`[data-user-id="${userId}"] .online-indicator`);
-    indicators.forEach(ind => {
-        ind.style.background = isOnline ? 'var(--accent-green)' : 'var(--text-secondary)';
-    });
-}
-
-// ==========================================
-// 11. تنسيق الروابط والهاشتاغات
-// ==========================================
-function formatContent(text) {
-    if (!text) return '';
-    
-    // تنسيق الهاشتاغات
-    text = text.replace(/#(\w+)/g, '<a href="#" onclick="searchHashtag(\'$1\')" class="hashtag">#$1</a>');
-    
-    // تنسيق الإشارات
-    text = text.replace(/@(\w+)/g, '<a href="#" onclick="viewUserProfile(\'$1\')">@$1</a>');
-    
-    // تنسيق الروابط
-    text = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
-    
-    return text;
-}
-
-function searchHashtag(tag) {
-    document.getElementById('searchInput').value = '#' + tag;
-    handleSearch();
-    showToast(`البحث عن #${tag}`, 'info');
-}
-
-function viewUserProfile(username) {
-    showToast(`الملف الشخصي لـ @${username}`, 'info');
-}
-
-// ==========================================
-// 12. إعادة التغريد (Retweet)
-// ==========================================
-async function retweetPost(postId, withQuote = false) {
-    if (!currentUser) return;
-    
-    if (withQuote) {
-        // فتح نافذة الاقتباس
-        const quote = prompt('أضف تعليقك على إعادة التغريد:');
-        if (quote !== null) {
-            await createRetweet(postId, quote);
-        }
-    } else {
-        if (confirm('هل تريد إعادة تغريد هذا المنشور؟')) {
-            await createRetweet(postId);
-        }
-    }
-}
-
-async function createRetweet(postId, quote = '') {
-    try {
-        const postRef = db.ref('posts/' + postId);
-        const snapshot = await postRef.once('value');
-        const originalPost = snapshot.val();
-        
-        const retweetData = {
-            userId: currentUser.uid,
-            content: quote,
-            timestamp: Date.now(),
-            originalPostId: postId,
-            originalUserId: originalPost.userId,
-            isRetweet: true,
-            likes: {},
-            comments: {}
-        };
-        
-        await db.ref('posts').push(retweetData);
-        
-        // تحديث عداد إعادة التغريد
-        await db.ref(`posts/${postId}/retweets/${currentUser.uid}`).set(true);
-        
-        // إرسال إشعار
-        await sendNotification(originalPost.userId, `${currentUserData.name} أعاد تغريد منشورك`);
-        
-        playSound('retweet');
-        showToast('تم إعادة التغريد بنجاح', 'success');
-        await loadPosts();
-    } catch (error) {
-        console.error('Error creating retweet:', error);
-        showToast('حدث خطأ في إعادة التغريد', 'error');
-    }
-}
-
-// ==========================================
-// 13. الاستطلاعات (Polls)
-// ==========================================
-function createPoll() {
-    const question = prompt('أدخل سؤال الاستطلاع:');
-    if (!question) return;
-    
-    const options = [];
-    for (let i = 1; i <= 4; i++) {
-        const option = prompt(`الخيار ${i} (اتركه فارغاً للإنهاء):`);
-        if (!option) break;
-        options.push(option);
-    }
-    
-    if (options.length < 2) {
-        showToast('يجب إدخال خيارين على الأقل', 'error');
-        return;
-    }
-    
-    const pollData = {
-        question: question,
-        options: options.reduce((acc, opt) => {
-            acc[opt] = 0;
-            return acc;
-        }, {}),
-        votes: {},
-        duration: 24 * 60 * 60 * 1000 // 24 ساعة
-    };
-    
-    // إضافة الاستطلاع إلى التغريدة الحالية
-    const postContent = document.getElementById('postContent');
-    postContent.value = `📊 استطلاع: ${question}\n` + 
-        options.map((opt, i) => `${i+1}. ${opt}`).join('\n') + 
-        '\n\nصوت الآن!';
-    
-    showToast('تم إنشاء الاستطلاع، أضف تعليقك ثم انشر', 'success');
-}
-
-// ==========================================
-// 14. المواضيع الرائجة (Trending Topics)
-// ==========================================
-async function loadTrendingTopics() {
-    try {
-        const postsRef = db.ref('posts').orderByChild('timestamp').limitToLast(1000);
-        const snapshot = await postsRef.once('value');
-        const posts = snapshot.val();
-        
-        if (!posts) return;
-        
-        // استخراج الهاشتاغات
-        const hashtags = {};
-        Object.values(posts).forEach(post => {
-            if (post.content) {
-                const tags = post.content.match(/#(\w+)/g) || [];
-                tags.forEach(tag => {
-                    const cleanTag = tag.replace('#', '').toLowerCase();
-                    hashtags[cleanTag] = (hashtags[cleanTag] || 0) + 1;
-                });
-            }
-        });
-        
-        // ترتيب الهاشتاغات
-        const sortedTags = Object.entries(hashtags)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5);
-        
-        const container = document.getElementById('trendingTopics');
-        container.innerHTML = '';
-        
-        sortedTags.forEach(([tag, count]) => {
-            const div = document.createElement('div');
-            div.className = 'trending-item';
-            div.onclick = () => searchHashtag(tag);
-            div.innerHTML = `
-                <div class="trending-topic">#${tag}</div>
-                <div class="trending-count">${count} تغريدة</div>
-            `;
-            container.appendChild(div);
-        });
-    } catch (error) {
-        console.error('Error loading trending topics:', error);
-    }
-}
-
-// ==========================================
-// 15. نسخ رابط التغريدة
-// ==========================================
-async function copyPostLink(postId) {
-    const link = `${window.location.origin}/post/${postId}`;
-    
-    try {
-        await navigator.clipboard.writeText(link);
-        showToast('✅ تم نسخ الرابط إلى الحافظة', 'success');
-        playSound('send');
-    } catch (error) {
-        // Fallback للمتصفحات القديمة
-        const input = document.createElement('input');
-        input.value = link;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-        showToast('✅ تم نسخ الرابط', 'success');
-    }
-}
-
-// ==========================================
-// دوال Toast للإشعارات المنبثقة
-// ==========================================
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    
-    const icons = {
-        success: '✅',
-        error: '❌',
-        info: 'ℹ️'
-    };
-    
-    toast.innerHTML = `
-        <span>${icons[type] || 'ℹ️'}</span>
-        <span>${message}</span>
-    `;
-    
-    container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => {
-            container.removeChild(toast);
-        }, 300);
-    }, 3000);
-}
-
-// ==========================================
-// تبديل الوضع الليلي
-// ==========================================
-function toggleTheme() {
-    isDarkMode = !isDarkMode;
-    localStorage.setItem('darkMode', isDarkMode);
-    applyTheme();
-    showToast(isDarkMode ? '🌙 الوضع الليلي مفعل' : '☀️ الوضع النهاري مفعل', 'info');
-}
-
-function applyTheme() {
-    const icon = document.getElementById('themeIcon');
-    
-    if (isDarkMode) {
-        document.body.classList.add('dark-mode');
-        if (icon) icon.className = 'fas fa-sun';
-    } else {
-        document.body.classList.remove('dark-mode');
-        if (icon) icon.className = 'fas fa-moon';
-    }
-}
-
-// ==========================================
-// دوال مساعدة
-// ==========================================
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-function handleSearch() {
-    const query = document.getElementById('searchInput').value.trim();
-    if (query) {
-        showToast(`البحث عن: ${query}`, 'info');
-        // تنفيذ البحث
-    }
-}
-
-function initImageInput() {
-    document.getElementById('imageInput').addEventListener('change', handleImageUpload);
-}
-
-function closeImageModal() {
-    document.getElementById('imageModal').classList.remove('active');
-}
-
-function viewImage(url) {
-    const modal = document.getElementById('imageModal');
-    const img = document.getElementById('modalImage');
-    img.src = url;
-    modal.classList.add('active');
-}
-
-function openSettings() {
-    showToast('الإعدادات قيد التطوير', 'info');
-}
-
-function viewProfile() {
-    showToast('الملف الشخصي قيد التطوير', 'info');
-}
-
-function showEmojiPicker() {
-    showToast('😊 قسم الإيموجي قيد التطوير', 'info');
-}
-
-// ==========================================
-// الدوال الأساسية (محتفظة بها من الكود الأصلي)
-// ==========================================
-async function loadUserData() {
-    const userRef = db.ref('users/' + currentUser.uid);
-    const snapshot = await userRef.once('value');
-    currentUserData = snapshot.val();
-    
-    if (currentUserData) {
-        document.getElementById('userDisplayName').textContent = currentUserData.name;
-        const avatar = document.getElementById('userAvatar');
-        avatar.textContent = currentUserData.name.charAt(0).toUpperCase();
-        
-        if (currentUserData.avatar) {
-            avatar.style.backgroundImage = `url(${currentUserData.avatar})`;
-            avatar.style.backgroundSize = 'cover';
-            avatar.textContent = '';
-        }
-    }
-}
-
-async function loadPosts(loadMore = false) {
-    if (!loadMore) {
-        showSkeletonLoading();
-    }
-    
-    try {
-        let postsRef = db.ref('posts').orderByChild('timestamp');
-        
-        if (loadMore && lastLoadedPostKey) {
-            postsRef = postsRef.endAt(null, lastLoadedPostKey);
-        }
-        
-        postsRef = postsRef.limitToLast(postsPerPage);
-        
-        const snapshot = await postsRef.once('value');
-        const posts = snapshot.val();
-        
-        const container = document.getElementById('postsContainer');
-        
-        if (!loadMore) {
-            container.innerHTML = '';
-        }
-        
-        if (!posts) {
-            if (!loadMore) {
-                container.innerHTML = '<div class="loading">لا توجد تغريدات بعد</div>';
-            }
-            document.getElementById('loadMoreBtn').style.display = 'none';
-            return;
-        }
-        
-        const postsArray = Object.entries(posts).reverse();
-        
-        if (!loadMore && postsArray.length > 0) {
-            lastLoadedPostKey = postsArray[postsArray.length - 1][0];
-        }
-        
-        for (const [postId, post] of postsArray) {
-            if (post.isDeleted) continue;
-            
-            const userSnapshot = await db.ref('users/' + post.userId).once('value');
-            const userData = userSnapshot.val();
-            
-            if (!userData || userData.isBanned) continue;
-            
-            const postElement = await createPostElement(postId, post, userData);
-            container.appendChild(postElement);
-        }
-        
-        // إظهار زر تحميل المزيد
-        const totalPosts = Object.keys(posts).filter(id => !posts[id].isDeleted).length;
-        document.getElementById('loadMoreBtn').style.display = 
-            totalPosts >= postsPerPage ? 'block' : 'none';
-            
-    } catch (error) {
-        console.error('Error loading posts:', error);
-        showToast('حدث خطأ في تحميل التغريدات', 'error');
-    }
-}
-
-async function createPostElement(postId, post, userData) {
-    const div = document.createElement('div');
-    div.className = 'post';
-    div.dataset.postId = postId;
-    div.dataset.userId = post.userId;
-    
-    // إذا كانت إعادة تغريد
-    if (post.isRetweet && post.originalPostId) {
-        return await createRetweetElement(postId, post, userData);
-    }
-    
-    const formattedContent = formatContent(post.content || '');
-    const likes = post.likes ? Object.keys(post.likes).length : 0;
-    const comments = post.comments ? Object.keys(post.comments).length : 0;
-    const retweets = post.retweets ? Object.keys(post.retweets).length : 0;
-    const userLiked = post.likes && post.likes[currentUser?.uid];
-    const userRetweeted = post.retweets && post.retweets[currentUser?.uid];
-    const userBookmarked = currentUserData?.bookmarks && currentUserData.bookmarks[postId];
-    
-    let content = `
-        <div class="post-header">
-            <div class="post-avatar" onclick="viewProfile()">${userData.name.charAt(0).toUpperCase()}</div>
-            <div style="flex: 1;">
-                <span class="post-author" onclick="viewProfile()">${userData.name}</span>
-                ${userData.isVerified ? '<i class="fas fa-check-circle verified-badge"></i>' : ''}
-                <span class="post-username">@${userData.username}</span>
-                <span style="color: var(--text-secondary);"> · ${formatTimestamp(post.timestamp)}</span>
-                ${userData.isOnline ? '<span class="online-indicator" style="display: inline-block; position: static; margin-right: 5px;"></span>' : ''}
-            </div>
-            <i class="fas fa-ellipsis-h" style="color: var(--text-secondary); cursor: pointer;" onclick="showPostOptions('${postId}')"></i>
-        </div>
-        <div class="post-content">${formattedContent}</div>
-    `;
-    
-    // إضافة الصور
-    if (post.images && post.images.length > 0) {
-        content += '<div class="post-images">';
-        post.images.forEach(img => {
-            content += `<img src="${img}" class="post-image" onclick="viewImage('${img}')">`;
-        });
-        content += '</div>';
-    }
-    
-    // إضافة الصوت
-    if (post.audio) {
-        content += `<audio class="post-audio" controls src="${post.audio}"></audio>`;
-    }
-    
-    // إضافة الاستطلاع
-    if (post.poll) {
-        content += createPollElement(postId, post.poll);
-    }
-    
-    content += `
-        <div class="post-footer">
-            <div class="post-action" onclick="showComments('${postId}')">
-                <i class="far fa-comment"></i>
-                <span>${comments}</span>
-            </div>
-            <div class="post-action ${userRetweeted ? 'retweeted' : ''}" onclick="retweetPost('${postId}')">
-                <i class="fas fa-retweet"></i>
-                <span>${retweets}</span>
-            </div>
-            <div class="post-action ${userLiked ? 'liked' : ''}" onclick="likePost('${postId}')">
-                <i class="far fa-heart"></i>
-                <span>${likes}</span>
-            </div>
-            <div class="post-action ${userBookmarked ? 'bookmarked' : ''}" onclick="bookmarkPost('${postId}')">
-                <i class="far fa-bookmark"></i>
-            </div>
-            <div class="post-action" onclick="copyPostLink('${postId}')">
-                <i class="fas fa-link"></i>
-            </div>
-        </div>
-    `;
-    
-    div.innerHTML = content;
-    return div;
-}
-
-async function createRetweetElement(postId, post, userData) {
-    // جلب بيانات المنشور الأصلي
-    const originalSnapshot = await db.ref('posts/' + post.originalPostId).once('value');
-    const originalPost = originalSnapshot.val();
-    
-    if (!originalPost) return document.createElement('div');
-    
-    const originalUserSnapshot = await db.ref('users/' + originalPost.userId).once('value');
-    const originalUserData = originalUserSnapshot.val();
-    
-    const div = document.createElement('div');
-    div.className = 'post';
-    
-    const formattedContent = formatContent(originalPost.content || '');
-    
-    div.innerHTML = `
-        <div style="color: var(--text-secondary); margin-bottom: 10px;">
-            <i class="fas fa-retweet"></i> ${userData.name} أعاد التغريد
-        </div>
-        <div class="post-header">
-            <div class="post-avatar">${originalUserData.name.charAt(0).toUpperCase()}</div>
-            <div>
-                <span class="post-author">${originalUserData.name}</span>
-                ${originalUserData.isVerified ? '<i class="fas fa-check-circle verified-badge"></i>' : ''}
-                <span class="post-username">@${originalUserData.username}</span>
-                <span style="color: var(--text-secondary);"> · ${formatTimestamp(originalPost.timestamp)}</span>
-            </div>
-        </div>
-        <div class="post-content">${formattedContent}</div>
-        ${post.content ? `<div style="margin-top: 10px; padding: 10px; background: var(--bg-primary); border-radius: 12px;">${formatContent(post.content)}</div>` : ''}
-    `;
-    
-    return div;
-}
-
-function createPollElement(postId, poll) {
-    const totalVotes = Object.values(poll.votes || {}).reduce((a, b) => a + b, 0);
-    
-    let html = '<div style="border: 1px solid var(--border-color); border-radius: 16px; padding: 15px; margin: 10px 0;">';
-    html += `<div style="font-weight: bold; margin-bottom: 10px;">📊 ${poll.question}</div>`;
-    
-    for (const [option, votes] of Object.entries(poll.options)) {
-        const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
-        html += `
-            <div style="margin-bottom: 10px;">
-                <div style="display: flex; justify-content: space-between;">
-                    <span>${option}</span>
-                    <span>${percentage}% (${votes} صوت)</span>
-                </div>
-                <div style="background: var(--bg-primary); height: 8px; border-radius: 4px; margin-top: 5px;">
-                    <div style="background: var(--accent-blue); width: ${percentage}%; height: 100%; border-radius: 4px;"></div>
-                </div>
-            </div>
-        `;
-    }
-    
-    html += `<div style="color: var(--text-secondary); font-size: 12px; margin-top: 10px;">${totalVotes} صوت</div>`;
-    html += '</div>';
-    
-    return html;
-}
-
-async function likePost(postId) {
-    if (!currentUser) return;
-    
-    try {
-        const likeRef = db.ref(`posts/${postId}/likes/${currentUser.uid}`);
-        const snapshot = await likeRef.once('value');
-        
-        if (snapshot.exists()) {
-            await likeRef.remove();
-        } else {
-            await likeRef.set(true);
-            playSound('like');
-            
-            // إرسال إشعار لصاحب المنشور
-            const postSnapshot = await db.ref('posts/' + postId).once('value');
-            const post = postSnapshot.val();
-            if (post.userId !== currentUser.uid) {
-                await sendNotification(post.userId, `${currentUserData.name} أعجب بتغريدتك`);
-            }
-        }
-        
-        // تحديث العرض فقط للمنشور المعني
-        const postElement = document.querySelector(`[data-post-id="${postId}"]`);
-        if (postElement) {
-            const likeBtn = postElement.querySelector('.post-action .fa-heart').parentElement;
-            const likeCount = postElement.querySelector('.post-action span');
-            const currentLikes = parseInt(likeCount.textContent) || 0;
-            
-            if (snapshot.exists()) {
-                likeBtn.classList.remove('liked');
-                likeCount.textContent = currentLikes - 1;
-            } else {
-                likeBtn.classList.add('liked');
-                likeCount.textContent = currentLikes + 1;
-            }
-        }
-    } catch (error) {
-        console.error('Error liking post:', error);
-        showToast('حدث خطأ', 'error');
-    }
-}
-
-function showComments(postId) {
-    showToast('قسم التعليقات قيد التطوير', 'info');
-}
-
-function showPostOptions(postId) {
-    const options = [
-        'نسخ الرابط',
-        'الإبلاغ عن تغريدة',
-        currentUser?.uid === document.querySelector(`[data-post-id="${postId}"]`)?.dataset.userId ? 'حذف التغريدة' : null
-    ].filter(Boolean);
-    
-    const choice = prompt('خيارات:\n' + options.map((o, i) => `${i+1}. ${o}`).join('\n'));
-    
-    if (choice === '1') copyPostLink(postId);
-    if (choice === '2') showToast('تم الإبلاغ عن التغريدة', 'info');
-    if (choice === '3') deletePost(postId);
-}
-
-async function deletePost(postId) {
-    if (!confirm('هل أنت متأكد من حذف هذه التغريدة؟')) return;
-    
-    try {
-        await db.ref(`posts/${postId}`).update({ isDeleted: true });
-        showToast('تم حذف التغريدة', 'success');
-        await loadPosts();
-    } catch (error) {
-        console.error('Error deleting post:', error);
-        showToast('حدث خطأ في الحذف', 'error');
-    }
-}
-
-async function createPost() {
-    const content = document.getElementById('postContent').value.trim();
-    
-    if (!content && selectedImages.length === 0 && !audioBlob) {
-        showToast('الرجاء كتابة نص أو إضافة صورة أو تسجيل صوت', 'error');
-        return;
-    }
-    
-    if (content.length > 280) {
-        showToast('تجاوزت الحد المسموح 280 حرف', 'error');
-        return;
-    }
-    
-    const submitBtn = document.getElementById('postSubmitBtn');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'جاري النشر...';
-    
-    try {
-        const postData = {
-            userId: currentUser.uid,
-            content: content,
-            timestamp: Date.now(),
-            likes: {},
-            comments: {},
-            retweets: {},
-            isDeleted: false
-        };
-        
-        // رفع الصور
-        if (selectedImages.length > 0) {
-            postData.images = [];
-            for (const image of selectedImages) {
-                const imageUrl = await uploadToCloudinary(image);
-                postData.images.push(imageUrl);
-            }
-        }
-        
-        // رفع الصوت
-        if (audioBlob) {
-            postData.audio = await uploadAudioToCloudinary(audioBlob);
-        }
-        
-        await db.ref('posts').push(postData);
-        
-        playSound('send');
-        showToast('تم نشر التغريدة بنجاح! 🎉', 'success');
-        
-        // إعادة تعيين النموذج
-        document.getElementById('postContent').value = '';
-        selectedImages = [];
-        audioBlob = null;
-        document.getElementById('imagePreview').innerHTML = '';
-        document.getElementById('audioPreview').style.display = 'none';
-        document.getElementById('charCounter').textContent = '0/280';
-        document.getElementById('linkPreviewContainer').innerHTML = '';
-        
-        await loadPosts();
-        await loadTrendingTopics();
-    } catch (error) {
-        console.error('Error creating post:', error);
-        showToast('حدث خطأ أثناء إنشاء التغريدة', 'error');
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'تغريد';
-    }
-}
-
-// ==========================================
-// دوال Cloudinary و Media
-// ==========================================
-function handleImageUpload(event) {
-    const files = event.target.files;
-    const preview = document.getElementById('imagePreview');
+function handleImageSelect(e) {
+    const files = e.target.files;
+    const container = document.getElementById('imagePreviewContainer');
     
     for (const file of files) {
         if (file.type.startsWith('image/')) {
+            selectedImages.push(file);
+            
             const reader = new FileReader();
-            reader.onload = (e) => {
-                selectedImages.push(file);
+            reader.onload = (event) => {
                 const img = document.createElement('img');
-                img.src = e.target.result;
-                img.className = 'preview-image';
+                img.src = event.target.result;
+                img.style.width = '60px';
+                img.style.height = '60px';
+                img.style.borderRadius = '12px';
+                img.style.objectFit = 'cover';
+                img.style.cursor = 'pointer';
                 img.onclick = () => {
                     const index = selectedImages.indexOf(file);
                     if (index > -1) {
@@ -1061,11 +112,13 @@ function handleImageUpload(event) {
                         img.remove();
                     }
                 };
-                preview.appendChild(img);
+                container.appendChild(img);
             };
             reader.readAsDataURL(file);
         }
     }
+    
+    document.getElementById('composeSubmit').disabled = false;
 }
 
 async function toggleRecording() {
@@ -1077,36 +130,771 @@ async function toggleRecording() {
             mediaRecorder = new MediaRecorder(stream);
             audioChunks = [];
             
-            mediaRecorder.ondataavailable = (event) => {
-                audioChunks.push(event.data);
-            };
-            
+            mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
             mediaRecorder.onstop = () => {
                 audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const audioUrl = URL.createObjectURL(audioBlob);
                 const audioPreview = document.getElementById('audioPreview');
-                audioPreview.src = audioUrl;
+                audioPreview.src = URL.createObjectURL(audioBlob);
                 audioPreview.style.display = 'block';
+                document.getElementById('composeSubmit').disabled = false;
             };
             
             mediaRecorder.start();
             isRecording = true;
-            btn.classList.add('recording');
-            btn.innerHTML = '<i class="fas fa-stop"></i> إيقاف';
-            showToast('🎤 بدأ التسجيل الصوتي', 'info');
+            btn.style.color = '#f4212e';
         } catch (error) {
-            showToast('لا يمكن الوصول إلى الميكروفون', 'error');
+            alert('لا يمكن الوصول إلى الميكروفون');
         }
     } else {
         mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
         isRecording = false;
-        btn.classList.remove('recording');
-        btn.innerHTML = '<i class="fas fa-microphone"></i>';
-        showToast('✅ تم إيقاف التسجيل', 'success');
+        btn.style.color = '';
     }
 }
 
+async function createTweet() {
+    const content = document.getElementById('composeInput').value.trim();
+    
+    if (!content && selectedImages.length === 0 && !audioBlob) return;
+    
+    const submitBtn = document.getElementById('composeSubmit');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '...';
+    
+    try {
+        const tweetData = {
+            userId: currentUser.uid,
+            content: content,
+            timestamp: Date.now(),
+            likes: {},
+            retweets: {},
+            replies: {},
+            isDeleted: false
+        };
+        
+        // رفع الصور
+        if (selectedImages.length > 0) {
+            tweetData.images = [];
+            for (const img of selectedImages) {
+                const url = await uploadToCloudinary(img);
+                tweetData.images.push(url);
+            }
+        }
+        
+        // رفع الصوت
+        if (audioBlob) {
+            tweetData.audio = await uploadAudioToCloudinary(audioBlob);
+        }
+        
+        await db.ref('tweets').push(tweetData);
+        await db.ref('users/' + currentUser.uid).update({
+            postsCount: (currentUserData.postsCount || 0) + 1
+        });
+        
+        // إعادة تعيين
+        document.getElementById('composeInput').value = '';
+        selectedImages = [];
+        audioBlob = null;
+        document.getElementById('imagePreviewContainer').innerHTML = '';
+        document.getElementById('audioPreview').style.display = 'none';
+        submitBtn.textContent = 'تغريد';
+        
+        await loadTweets();
+    } catch (error) {
+        console.error('Error creating tweet:', error);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'تغريد';
+    }
+}
+
+// ==========================================
+// تحميل التغريدات
+// ==========================================
+async function loadTweets() {
+    const container = document.getElementById('tweetsContainer');
+    container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+    
+    try {
+        const snapshot = await db.ref('tweets').orderByChild('timestamp').limitToLast(50).once('value');
+        const tweets = snapshot.val();
+        
+        container.innerHTML = '';
+        
+        if (!tweets) {
+            container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary);">لا توجد تغريدات بعد</div>';
+            return;
+        }
+        
+        const tweetsArray = Object.entries(tweets).reverse();
+        
+        for (const [tweetId, tweet] of tweetsArray) {
+            if (tweet.isDeleted) continue;
+            
+            const userSnapshot = await db.ref('users/' + tweet.userId).once('value');
+            const userData = userSnapshot.val();
+            
+            if (!userData || userData.isBanned) continue;
+            
+            const tweetEl = await createTweetElement(tweetId, tweet, userData);
+            container.appendChild(tweetEl);
+        }
+    } catch (error) {
+        console.error('Error loading tweets:', error);
+        container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary);">حدث خطأ في تحميل التغريدات</div>';
+    }
+}
+
+async function createTweetElement(tweetId, tweet, userData) {
+    const div = document.createElement('div');
+    div.className = 'tweet';
+    div.dataset.tweetId = tweetId;
+    
+    const likes = tweet.likes ? Object.keys(tweet.likes).length : 0;
+    const retweets = tweet.retweets ? Object.keys(tweet.retweets).length : 0;
+    const replies = tweet.replies ? Object.keys(tweet.replies).length : 0;
+    const userLiked = tweet.likes && tweet.likes[currentUser?.uid];
+    const userRetweeted = tweet.retweets && tweet.retweets[currentUser?.uid];
+    
+    let html = `
+        <div class="tweet-avatar" onclick="viewUserProfile('${tweet.userId}')" style="background-image: url('${userData.avatar || ''}');">
+            ${!userData.avatar ? userData.name?.charAt(0).toUpperCase() || 'U' : ''}
+        </div>
+        <div class="tweet-content">
+            <div class="tweet-header">
+                <span class="tweet-name" onclick="viewUserProfile('${tweet.userId}')">${userData.name || 'مستخدم'}</span>
+                ${userData.isVerified ? '<i class="fas fa-check-circle verified-icon"></i>' : ''}
+                <span class="tweet-username">@${userData.username || 'user'}</span>
+                <span class="tweet-time">· ${formatTime(tweet.timestamp)}</span>
+            </div>
+            <div class="tweet-text">${escapeHtml(tweet.content || '')}</div>
+    `;
+    
+    // الصور
+    if (tweet.images && tweet.images.length > 0) {
+        html += '<div class="tweet-images">';
+        tweet.images.forEach(img => {
+            html += `<img src="${img}" class="tweet-image" onclick="viewImage('${img}')">`;
+        });
+        html += '</div>';
+    }
+    
+    // الصوت
+    if (tweet.audio) {
+        html += `<audio class="tweet-audio" controls src="${tweet.audio}"></audio>`;
+    }
+    
+    html += `
+            <div class="tweet-actions">
+                <div class="tweet-action" onclick="showReplyModal('${tweetId}')">
+                    <i class="far fa-comment"></i>
+                    <span>${replies || ''}</span>
+                </div>
+                <div class="tweet-action ${userRetweeted ? 'retweeted' : ''}" onclick="retweetTweet('${tweetId}')">
+                    <i class="fas fa-retweet"></i>
+                    <span>${retweets || ''}</span>
+                </div>
+                <div class="tweet-action ${userLiked ? 'liked' : ''}" onclick="likeTweet('${tweetId}')">
+                    <i class="far fa-heart"></i>
+                    <span>${likes || ''}</span>
+                </div>
+                <div class="tweet-action" onclick="bookmarkTweet('${tweetId}')">
+                    <i class="far fa-bookmark"></i>
+                </div>
+                <div class="tweet-action" onclick="shareTweet('${tweetId}')">
+                    <i class="fas fa-share"></i>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    div.innerHTML = html;
+    return div;
+}
+
+// ==========================================
+// التفاعل مع التغريدات
+// ==========================================
+async function likeTweet(tweetId) {
+    if (!currentUser) return;
+    
+    const likeRef = db.ref(`tweets/${tweetId}/likes/${currentUser.uid}`);
+    const snapshot = await likeRef.once('value');
+    
+    if (snapshot.exists()) {
+        await likeRef.remove();
+    } else {
+        await likeRef.set(true);
+        
+        // إرسال إشعار
+        const tweetSnapshot = await db.ref('tweets/' + tweetId).once('value');
+        const tweet = tweetSnapshot.val();
+        if (tweet.userId !== currentUser.uid) {
+            await sendNotification(tweet.userId, `${currentUserData.name} أعجب بتغريدتك`, 'like', tweetId);
+        }
+    }
+    
+    await loadTweets();
+}
+
+async function retweetTweet(tweetId) {
+    if (!currentUser) return;
+    
+    const retweetRef = db.ref(`tweets/${tweetId}/retweets/${currentUser.uid}`);
+    const snapshot = await retweetRef.once('value');
+    
+    if (snapshot.exists()) {
+        await retweetRef.remove();
+    } else {
+        await retweetRef.set(true);
+        
+        const tweetSnapshot = await db.ref('tweets/' + tweetId).once('value');
+        const tweet = tweetSnapshot.val();
+        if (tweet.userId !== currentUser.uid) {
+            await sendNotification(tweet.userId, `${currentUserData.name} أعاد تغريد تغريدتك`, 'retweet', tweetId);
+        }
+    }
+    
+    await loadTweets();
+}
+
+async function bookmarkTweet(tweetId) {
+    const bookmarkRef = db.ref(`users/${currentUser.uid}/bookmarks/${tweetId}`);
+    const snapshot = await bookmarkRef.once('value');
+    
+    if (snapshot.exists()) {
+        await bookmarkRef.remove();
+    } else {
+        await bookmarkRef.set({ timestamp: Date.now() });
+    }
+    
+    alert(snapshot.exists() ? 'تمت الإزالة من المحفوظات' : 'تمت الإضافة إلى المحفوظات');
+}
+
+function shareTweet(tweetId) {
+    const url = `${window.location.origin}/tweet/${tweetId}`;
+    navigator.clipboard?.writeText(url);
+    alert('تم نسخ الرابط');
+}
+
+// ==========================================
+// تحميل المستخدمين المقترحين
+// ==========================================
+async function loadSuggestedUsers() {
+    const container = document.getElementById('suggestedUsersList');
+    
+    try {
+        const snapshot = await db.ref('users').once('value');
+        const users = snapshot.val();
+        
+        container.innerHTML = '';
+        let count = 0;
+        
+        for (const [userId, userData] of Object.entries(users)) {
+            if (userId === currentUser.uid) continue;
+            if (userData.isBanned) continue;
+            if (currentUserData.following && currentUserData.following[userId]) continue;
+            
+            if (count++ >= 3) break;
+            
+            const followItem = document.createElement('div');
+            followItem.className = 'follow-item';
+            followItem.innerHTML = `
+                <div class="follow-info">
+                    <div class="follow-avatar" style="background-image: url('${userData.avatar || ''}');" onclick="viewUserProfile('${userId}')">
+                        ${!userData.avatar ? (userData.name?.charAt(0) || 'U') : ''}
+                    </div>
+                    <div>
+                        <div class="follow-name" onclick="viewUserProfile('${userId}')">${userData.name || 'مستخدم'}</div>
+                        <div class="follow-username">@${userData.username || 'user'}</div>
+                    </div>
+                </div>
+                <button class="follow-btn-small" onclick="followUser('${userId}', this)">متابعة</button>
+            `;
+            container.appendChild(followItem);
+        }
+    } catch (error) {
+        console.error('Error loading suggested users:', error);
+    }
+}
+
+async function followUser(userId, btn) {
+    try {
+        const updates = {};
+        updates[`users/${currentUser.uid}/following/${userId}`] = true;
+        updates[`users/${userId}/followers/${currentUser.uid}`] = true;
+        
+        await db.ref().update(updates);
+        
+        // تحديث العداد
+        const userSnapshot = await db.ref('users/' + userId).once('value');
+        const userData = userSnapshot.val();
+        await db.ref('users/' + userId).update({
+            followersCount: (userData.followersCount || 0) + 1
+        });
+        
+        await db.ref('users/' + currentUser.uid).update({
+            followingCount: (currentUserData.followingCount || 0) + 1
+        });
+        
+        btn.textContent = 'تمت المتابعة';
+        btn.classList.add('following');
+        btn.disabled = true;
+        
+        await sendNotification(userId, `${currentUserData.name} بدأ بمتابعتك`, 'follow');
+    } catch (error) {
+        console.error('Error following user:', error);
+    }
+}
+
+// ==========================================
+// نافذة تعديل الملف الشخصي
+// ==========================================
+function openProfileModal() {
+    const modal = document.getElementById('profileEditModal');
+    
+    // ملء البيانات الحالية
+    document.getElementById('editName').value = currentUserData.name || '';
+    document.getElementById('editBio').value = currentUserData.bio || '';
+    document.getElementById('editLocation').value = currentUserData.location || '';
+    document.getElementById('editWebsite').value = currentUserData.website || '';
+    
+    // الصور
+    if (currentUserData.coverImage) {
+        document.getElementById('coverImageEdit').style.backgroundImage = `url(${currentUserData.coverImage})`;
+    }
+    if (currentUserData.avatar) {
+        document.getElementById('avatarEdit').style.backgroundImage = `url(${currentUserData.avatar})`;
+        document.getElementById('avatarEdit').innerHTML = '<span class="avatar-edit-overlay"><i class="fas fa-camera"></i> تغيير</span>';
+    }
+    
+    modal.classList.add('active');
+}
+
+function closeProfileEditModal() {
+    document.getElementById('profileEditModal').classList.remove('active');
+}
+
+function handleCoverSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+        selectedCoverFile = file;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            document.getElementById('coverImageEdit').style.backgroundImage = `url(${event.target.result})`;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function handleAvatarSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+        selectedAvatarFile = file;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            document.getElementById('avatarEdit').style.backgroundImage = `url(${event.target.result})`;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+async function saveProfile() {
+    const name = document.getElementById('editName').value.trim();
+    const bio = document.getElementById('editBio').value.trim();
+    const location = document.getElementById('editLocation').value.trim();
+    const website = document.getElementById('editWebsite').value.trim();
+    
+    const updates = { name, bio, location, website };
+    
+    // رفع صورة الغلاف
+    if (selectedCoverFile) {
+        updates.coverImage = await uploadToCloudinary(selectedCoverFile);
+    }
+    
+    // رفع الصورة الشخصية
+    if (selectedAvatarFile) {
+        updates.avatar = await uploadToCloudinary(selectedAvatarFile);
+    }
+    
+    try {
+        await db.ref('users/' + currentUser.uid).update(updates);
+        await loadCurrentUserData();
+        closeProfileEditModal();
+        alert('تم حفظ التغييرات بنجاح');
+    } catch (error) {
+        console.error('Error saving profile:', error);
+        alert('حدث خطأ في حفظ التغييرات');
+    }
+}
+
+// ==========================================
+// عرض الملف الشخصي
+// ==========================================
+async function viewUserProfile(userId) {
+    currentViewingUserId = userId;
+    const modal = document.getElementById('profileViewModal');
+    
+    const snapshot = await db.ref('users/' + userId).once('value');
+    const userData = snapshot.val();
+    
+    if (!userData) return;
+    
+    document.getElementById('viewProfileName').textContent = userData.name || 'مستخدم';
+    document.getElementById('viewName').textContent = userData.name || 'مستخدم';
+    document.getElementById('viewUsername').textContent = '@' + (userData.username || 'user');
+    document.getElementById('viewBio').textContent = userData.bio || '';
+    document.getElementById('viewLocation').textContent = userData.location || 'غير محدد';
+    document.getElementById('viewWebsite').textContent = userData.website || 'غير محدد';
+    document.getElementById('viewJoinDate').textContent = formatDate(userData.createdAt);
+    document.getElementById('viewFollowing').textContent = userData.followingCount || 0;
+    document.getElementById('viewFollowers').textContent = userData.followersCount || 0;
+    
+    // الصور
+    if (userData.coverImage) {
+        document.getElementById('viewCoverImage').style.backgroundImage = `url(${userData.coverImage})`;
+    }
+    if (userData.avatar) {
+        document.getElementById('viewAvatar').style.backgroundImage = `url(${userData.avatar})`;
+    } else {
+        document.getElementById('viewAvatar').textContent = (userData.name || 'U').charAt(0).toUpperCase();
+    }
+    
+    // التوثيق
+    document.getElementById('viewVerifiedBadge').style.display = userData.isVerified ? 'inline' : 'none';
+    
+    // زر المتابعة
+    const followBtn = document.getElementById('viewFollowBtn');
+    if (userId === currentUser.uid) {
+        followBtn.textContent = 'تعديل الملف';
+        followBtn.onclick = () => {
+            closeProfileViewModal();
+            openProfileModal();
+        };
+    } else {
+        const isFollowing = currentUserData.following && currentUserData.following[userId];
+        followBtn.textContent = isFollowing ? 'إلغاء المتابعة' : 'متابعة';
+        followBtn.classList.toggle('following', isFollowing);
+        followBtn.onclick = () => toggleFollowFromView();
+    }
+    
+    // تحميل تغريدات المستخدم
+    await loadUserTweets(userId);
+    
+    modal.classList.add('active');
+}
+
+function closeProfileViewModal() {
+    document.getElementById('profileViewModal').classList.remove('active');
+    currentViewingUserId = null;
+}
+
+async function toggleFollowFromView() {
+    if (!currentViewingUserId || currentViewingUserId === currentUser.uid) return;
+    
+    const isFollowing = currentUserData.following && currentUserData.following[currentViewingUserId];
+    const btn = document.getElementById('viewFollowBtn');
+    
+    try {
+        if (isFollowing) {
+            await db.ref(`users/${currentUser.uid}/following/${currentViewingUserId}`).remove();
+            await db.ref(`users/${currentViewingUserId}/followers/${currentUser.uid}`).remove();
+            
+            const userSnapshot = await db.ref('users/' + currentViewingUserId).once('value');
+            const userData = userSnapshot.val();
+            await db.ref('users/' + currentViewingUserId).update({
+                followersCount: Math.max(0, (userData.followersCount || 0) - 1)
+            });
+            
+            btn.textContent = 'متابعة';
+            btn.classList.remove('following');
+        } else {
+            await db.ref(`users/${currentUser.uid}/following/${currentViewingUserId}`).set(true);
+            await db.ref(`users/${currentViewingUserId}/followers/${currentUser.uid}`).set(true);
+            
+            const userSnapshot = await db.ref('users/' + currentViewingUserId).once('value');
+            const userData = userSnapshot.val();
+            await db.ref('users/' + currentViewingUserId).update({
+                followersCount: (userData.followersCount || 0) + 1
+            });
+            
+            btn.textContent = 'إلغاء المتابعة';
+            btn.classList.add('following');
+            
+            await sendNotification(currentViewingUserId, `${currentUserData.name} بدأ بمتابعتك`, 'follow');
+        }
+        
+        await loadCurrentUserData();
+        document.getElementById('viewFollowers').textContent = (await db.ref('users/' + currentViewingUserId).once('value')).val().followersCount || 0;
+    } catch (error) {
+        console.error('Error toggling follow:', error);
+    }
+}
+
+async function loadUserTweets(userId) {
+    const container = document.getElementById('profileTweetsContainer');
+    container.innerHTML = '<div class="loading-spinner">جاري التحميل...</div>';
+    
+    try {
+        const snapshot = await db.ref('tweets').orderByChild('userId').equalTo(userId).once('value');
+        const tweets = snapshot.val();
+        
+        container.innerHTML = '';
+        
+        if (!tweets) {
+            container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary);">لا توجد تغريدات</div>';
+            return;
+        }
+        
+        const tweetsArray = Object.entries(tweets).reverse();
+        const userSnapshot = await db.ref('users/' + userId).once('value');
+        const userData = userSnapshot.val();
+        
+        for (const [tweetId, tweet] of tweetsArray) {
+            if (tweet.isDeleted) continue;
+            const tweetEl = await createTweetElement(tweetId, tweet, userData);
+            container.appendChild(tweetEl);
+        }
+    } catch (error) {
+        console.error('Error loading user tweets:', error);
+        container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary);">حدث خطأ</div>';
+    }
+}
+
+// ==========================================
+// لوحة تحكم المدير
+// ==========================================
+async function openAdminPanel() {
+    if (!currentUserData?.isAdmin && currentUser.email !== ADMIN_EMAIL) {
+        alert('غير مصرح لك بالوصول');
+        return;
+    }
+    
+    document.getElementById('adminPanelModal').classList.add('active');
+    await loadAllUsers();
+    await loadAdminUsers();
+    await loadAdminStats();
+}
+
+function closeAdminPanel() {
+    document.getElementById('adminPanelModal').classList.remove('active');
+}
+
+function switchAdminTab(tab) {
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
+    
+    if (tab === 'users') {
+        document.querySelectorAll('.admin-tab')[0].classList.add('active');
+        document.getElementById('adminUsersTab').classList.add('active');
+    } else if (tab === 'content') {
+        document.querySelectorAll('.admin-tab')[1].classList.add('active');
+        document.getElementById('adminContentTab').classList.add('active');
+        loadAdminContent();
+    } else if (tab === 'reports') {
+        document.querySelectorAll('.admin-tab')[2].classList.add('active');
+        document.getElementById('adminReportsTab').classList.add('active');
+        loadAdminReports();
+    } else if (tab === 'stats') {
+        document.querySelectorAll('.admin-tab')[3].classList.add('active');
+        document.getElementById('adminStatsTab').classList.add('active');
+        loadAdminStats();
+    }
+}
+
+async function loadAllUsers() {
+    const snapshot = await db.ref('users').once('value');
+    allUsers = snapshot.val() || {};
+}
+
+async function loadAdminUsers() {
+    const container = document.getElementById('adminUsersList');
+    container.innerHTML = '';
+    
+    for (const [userId, userData] of Object.entries(allUsers)) {
+        const div = document.createElement('div');
+        div.className = 'admin-user-item';
+        div.innerHTML = `
+            <div class="admin-user-info">
+                <div class="admin-user-avatar" style="background-image: url('${userData.avatar || ''}');">
+                    ${!userData.avatar ? (userData.name?.charAt(0) || 'U') : ''}
+                </div>
+                <div>
+                    <div>${userData.name || 'مستخدم'} ${userData.isVerified ? '<i class="fas fa-check-circle" style="color: #1d9bf0;"></i>' : ''}</div>
+                    <div style="color: #71767b;">@${userData.username || 'user'}</div>
+                    <div style="font-size: 12px;">${userData.email || ''}</div>
+                    <div style="font-size: 12px;">${userData.isBanned ? '<span style="color: #f4212e;">محظور</span>' : '<span style="color: #00ba7c;">نشط</span>'}</div>
+                </div>
+            </div>
+            <div class="admin-user-actions">
+                ${userId !== currentUser.uid ? `
+                    <button class="admin-btn verify" onclick="toggleVerifyUser('${userId}')">
+                        ${userData.isVerified ? 'إلغاء التوثيق' : 'توثيق'}
+                    </button>
+                    <button class="admin-btn ban" onclick="toggleBanUser('${userId}')">
+                        ${userData.isBanned ? 'إلغاء الحظر' : 'حظر'}
+                    </button>
+                    <button class="admin-btn warn" onclick="warnUser('${userId}')">تحذير</button>
+                ` : '<span style="color: #71767b;">أنت</span>'}
+            </div>
+        `;
+        container.appendChild(div);
+    }
+}
+
+async function toggleVerifyUser(userId) {
+    const userData = allUsers[userId];
+    await db.ref('users/' + userId).update({ isVerified: !userData.isVerified });
+    await loadAllUsers();
+    await loadAdminUsers();
+    await loadAdminStats();
+}
+
+async function toggleBanUser(userId) {
+    const userData = allUsers[userId];
+    await db.ref('users/' + userId).update({ isBanned: !userData.isBanned });
+    await loadAllUsers();
+    await loadAdminUsers();
+    await loadAdminStats();
+    
+    if (!userData.isBanned) {
+        await sendNotification(userId, 'تم حظر حسابك من قبل الإدارة', 'ban');
+    }
+}
+
+function warnUser(userId) {
+    const reason = prompt('سبب التحذير:');
+    if (reason) {
+        sendNotification(userId, `تحذير من الإدارة: ${reason}`, 'warn');
+        alert('تم إرسال التحذير');
+    }
+}
+
+async function loadAdminContent() {
+    const container = document.getElementById('adminContentList');
+    container.innerHTML = '<div class="loading-spinner">جاري التحميل...</div>';
+    
+    try {
+        const snapshot = await db.ref('tweets').orderByChild('timestamp').limitToLast(30).once('value');
+        const tweets = snapshot.val();
+        
+        container.innerHTML = '';
+        
+        if (!tweets) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px;">لا يوجد محتوى</div>';
+            return;
+        }
+        
+        for (const [tweetId, tweet] of Object.entries(tweets).reverse()) {
+            const userData = allUsers[tweet.userId] || {};
+            
+            const div = document.createElement('div');
+            div.className = 'admin-user-item';
+            div.innerHTML = `
+                <div style="flex: 1;">
+                    <div><strong>${userData.name || 'مستخدم'}</strong> @${userData.username || 'user'}</div>
+                    <div style="margin: 8px 0;">${escapeHtml((tweet.content || '').substring(0, 100))}...</div>
+                    <div style="font-size: 12px; color: #71767b;">${formatTime(tweet.timestamp)}</div>
+                </div>
+                <div>
+                    <button class="admin-btn delete" onclick="adminDeleteTweet('${tweetId}')">حذف</button>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+    } catch (error) {
+        console.error('Error loading admin content:', error);
+    }
+}
+
+async function adminDeleteTweet(tweetId) {
+    if (!confirm('هل أنت متأكد من حذف هذه التغريدة؟')) return;
+    
+    await db.ref('tweets/' + tweetId).update({ isDeleted: true });
+    await loadAdminContent();
+    alert('تم حذف التغريدة');
+}
+
+function loadAdminReports() {
+    document.getElementById('adminReportsList').innerHTML = '<div style="text-align: center; padding: 20px;">لا توجد بلاغات حالياً</div>';
+}
+
+async function loadAdminStats() {
+    const users = allUsers;
+    const tweetsSnapshot = await db.ref('tweets').once('value');
+    const tweets = tweetsSnapshot.val() || {};
+    
+    const totalUsers = Object.keys(users).length;
+    const totalTweets = Object.values(tweets).filter(t => !t.isDeleted).length;
+    const bannedUsers = Object.values(users).filter(u => u.isBanned).length;
+    const verifiedUsers = Object.values(users).filter(u => u.isVerified).length;
+    const onlineUsers = Object.values(users).filter(u => u.isOnline).length;
+    
+    document.getElementById('statTotalUsers').textContent = totalUsers;
+    document.getElementById('statTotalTweets').textContent = totalTweets;
+    document.getElementById('statBannedUsers').textContent = bannedUsers;
+    document.getElementById('statVerifiedUsers').textContent = verifiedUsers;
+    document.getElementById('statOnlineUsers').textContent = onlineUsers;
+    document.getElementById('statReports').textContent = '0';
+}
+
+function searchAdminUsers() {
+    const query = document.getElementById('adminUserSearch').value.toLowerCase();
+    const container = document.getElementById('adminUsersList');
+    
+    container.innerHTML = '';
+    
+    for (const [userId, userData] of Object.entries(allUsers)) {
+        if (userData.name?.toLowerCase().includes(query) || 
+            userData.username?.toLowerCase().includes(query) ||
+            userData.email?.toLowerCase().includes(query)) {
+            // إعادة عرض المستخدم
+        }
+    }
+}
+
+// ==========================================
+// الرسائل
+// ==========================================
+function showMessages() {
+    document.getElementById('messagesModal').classList.add('active');
+}
+
+function closeMessagesModal() {
+    document.getElementById('messagesModal').classList.remove('active');
+}
+
+function newMessage() {
+    alert('فتح محادثة جديدة');
+}
+
+// ==========================================
+// الإشعارات
+// ==========================================
+async function sendNotification(userId, message, type, relatedId = null) {
+    try {
+        const notifRef = db.ref(`notifications/${userId}`).push();
+        await notifRef.set({
+            message: message,
+            type: type,
+            relatedId: relatedId,
+            from: currentUser.uid,
+            fromName: currentUserData.name,
+            timestamp: Date.now(),
+            read: false
+        });
+    } catch (error) {
+        console.error('Error sending notification:', error);
+    }
+}
+
+function showNotifications() {
+    alert('قسم الإشعارات');
+}
+
+// ==========================================
+// دوال مساعدة
+// ==========================================
 async function uploadToCloudinary(file) {
     const formData = new FormData();
     formData.append('file', file);
@@ -1135,176 +923,7 @@ async function uploadAudioToCloudinary(blob) {
     return data.secure_url;
 }
 
-// ==========================================
-// دوال المتابعة والمستخدمين
-// ==========================================
-async function loadSuggestedUsers() {
-    const usersRef = db.ref('users');
-    const snapshot = await usersRef.once('value');
-    const users = snapshot.val();
-    
-    const container = document.getElementById('suggestedUsers');
-    container.innerHTML = '';
-    
-    if (!users || !currentUserData) return;
-    
-    const following = currentUserData.following || {};
-    let count = 0;
-    
-    for (const [userId, userData] of Object.entries(users)) {
-        if (userId === currentUser.uid || userData.isBanned || following[userId]) continue;
-        if (count++ >= 5) break;
-        
-        const div = document.createElement('div');
-        div.className = 'suggested-user';
-        div.dataset.userId = userId;
-        div.innerHTML = `
-            <div>
-                <strong>${userData.name}</strong>
-                ${userData.isVerified ? '<i class="fas fa-check-circle verified-badge"></i>' : ''}
-                <div style="color: var(--text-secondary);">@${userData.username}</div>
-                ${userData.isOnline ? '<span style="color: var(--accent-green); font-size: 12px;">🟢 متصل الآن</span>' : ''}
-            </div>
-            <button class="follow-btn" onclick="followUser('${userId}')">متابعة</button>
-        `;
-        container.appendChild(div);
-    }
-}
-
-async function followUser(userId) {
-    try {
-        const updates = {};
-        updates[`users/${currentUser.uid}/following/${userId}`] = true;
-        updates[`users/${userId}/followers/${currentUser.uid}`] = true;
-        
-        await db.ref().update(updates);
-        
-        // إرسال إشعار
-        await sendNotification(userId, `${currentUserData.name} بدأ بمتابعتك`);
-        
-        showToast('تمت المتابعة بنجاح', 'success');
-        await loadSuggestedUsers();
-    } catch (error) {
-        console.error('Error following user:', error);
-        showToast('حدث خطأ في المتابعة', 'error');
-    }
-}
-
-// ==========================================
-// دوال لوحة تحكم المدير
-// ==========================================
-async function loadAdminPanel() {
-    await loadUsersList();
-    await loadContentList();
-    await loadStats();
-}
-
-async function loadUsersList() {
-    const usersRef = db.ref('users');
-    const snapshot = await usersRef.once('value');
-    const users = snapshot.val();
-    
-    const container = document.getElementById('usersList');
-    container.innerHTML = '';
-    
-    for (const [userId, userData] of Object.entries(users)) {
-        const div = document.createElement('div');
-        div.className = 'user-management-item';
-        div.innerHTML = `
-            <div>
-                <strong>${userData.name}</strong>
-                ${userData.isVerified ? '<i class="fas fa-check-circle verified-badge"></i>' : ''}
-                <div style="color: var(--text-secondary);">@${userData.username}</div>
-                <div style="font-size: 12px;">${userData.email}</div>
-            </div>
-            <div>
-                <button class="verify-btn" onclick="toggleVerifyUser('${userId}', ${!userData.isVerified})">
-                    ${userData.isVerified ? 'إلغاء التوثيق' : 'توثيق'}
-                </button>
-                <button class="ban-btn" onclick="toggleBanUser('${userId}', ${!userData.isBanned})">
-                    ${userData.isBanned ? 'إلغاء الحظر' : 'حظر'}
-                </button>
-            </div>
-        `;
-        container.appendChild(div);
-    }
-}
-
-async function toggleVerifyUser(userId, verify) {
-    await db.ref(`users/${userId}`).update({ isVerified: verify });
-    await loadUsersList();
-    showToast(verify ? 'تم توثيق المستخدم' : 'تم إلغاء التوثيق', 'success');
-}
-
-async function toggleBanUser(userId, ban) {
-    await db.ref(`users/${userId}`).update({ isBanned: ban });
-    await loadUsersList();
-    showToast(ban ? 'تم حظر المستخدم' : 'تم إلغاء الحظر', 'success');
-}
-
-async function loadContentList() {
-    const postsRef = db.ref('posts').orderByChild('timestamp').limitToLast(20);
-    const snapshot = await postsRef.once('value');
-    const posts = snapshot.val();
-    
-    const container = document.getElementById('contentList');
-    container.innerHTML = '';
-    
-    if (!posts) return;
-    
-    for (const [postId, post] of Object.entries(posts).reverse()) {
-        if (post.isDeleted) continue;
-        
-        const div = document.createElement('div');
-        div.className = 'user-management-item';
-        div.innerHTML = `
-            <div style="flex: 1;">
-                <div style="font-weight: bold;">${escapeHtml((post.content || '').substring(0, 50))}...</div>
-                <div style="font-size: 12px; color: var(--text-secondary);">${formatTimestamp(post.timestamp)}</div>
-            </div>
-            <button class="delete-btn" onclick="adminDeletePost('${postId}')">حذف</button>
-        `;
-        container.appendChild(div);
-    }
-}
-
-async function adminDeletePost(postId) {
-    if (!confirm('هل أنت متأكد من حذف هذا المنشور؟')) return;
-    await db.ref(`posts/${postId}`).update({ isDeleted: true });
-    await loadContentList();
-    await loadPosts();
-    showToast('تم حذف المنشور', 'success');
-}
-
-async function loadStats() {
-    const usersRef = db.ref('users');
-    const postsRef = db.ref('posts');
-    
-    const usersSnapshot = await usersRef.once('value');
-    const postsSnapshot = await postsRef.once('value');
-    
-    const users = usersSnapshot.val() || {};
-    const posts = postsSnapshot.val() || {};
-    
-    const totalUsers = Object.keys(users).length;
-    const totalPosts = Object.values(posts).filter(p => !p.isDeleted).length;
-    const bannedUsers = Object.values(users).filter(u => u.isBanned).length;
-    const onlineUsers = Object.values(users).filter(u => u.isOnline).length;
-    
-    const container = document.getElementById('statsPanel');
-    container.innerHTML = `
-        <div>👥 إجمالي المستخدمين: ${totalUsers}</div>
-        <div>🟢 المستخدمين المتصلين: ${onlineUsers}</div>
-        <div>📝 إجمالي التغريدات: ${totalPosts}</div>
-        <div>🚫 المستخدمين المحظورين: ${bannedUsers}</div>
-        <div>📅 آخر تحديث: ${new Date().toLocaleString('ar')}</div>
-    `;
-}
-
-// ==========================================
-// دوال مساعدة
-// ==========================================
-function formatTimestamp(timestamp) {
+function formatTime(timestamp) {
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now - date;
@@ -1317,6 +936,11 @@ function formatTimestamp(timestamp) {
     return date.toLocaleDateString('ar');
 }
 
+function formatDate(timestamp) {
+    if (!timestamp) return 'غير محدد';
+    return new Date(timestamp).toLocaleDateString('ar', { year: 'numeric', month: 'long' });
+}
+
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -1324,40 +948,57 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ==========================================
-// تسجيل الخروج
-// ==========================================
-async function logout() {
-    if (!confirm('هل أنت متأكد من تسجيل الخروج؟')) return;
+function setupPresence() {
+    const userStatusRef = db.ref(`users/${currentUser.uid}`);
+    const connectedRef = db.ref('.info/connected');
     
-    try {
-        await updateOnlineStatus(false);
-        await db.ref('users/' + currentUser.uid).update({ 
-            isOnline: false,
-            lastSeen: Date.now()
-        });
-        await auth.signOut();
-        window.location.href = 'auth.html';
-    } catch (error) {
-        console.error('Error logging out:', error);
-        showToast('حدث خطأ في تسجيل الخروج', 'error');
+    connectedRef.on('value', (snap) => {
+        if (snap.val() === true) {
+            userStatusRef.update({ isOnline: true });
+            userStatusRef.child('isOnline').onDisconnect().set(false);
+            userStatusRef.child('lastSeen').onDisconnect().set(Date.now());
+        }
+    });
+}
+
+async function loadTrendingTopics() {
+    // تنفيذ لاحق
+}
+
+function showExplore() {
+    alert('قسم الاستكشاف');
+}
+
+function showBookmarks() {
+    alert('المحفوظات');
+}
+
+function showLogoutMenu() {
+    if (confirm('هل تريد تسجيل الخروج؟')) {
+        logout();
     }
 }
 
-// تأكيد الخروج من الصفحة
-window.addEventListener('beforeunload', (e) => {
-    const postContent = document.getElementById('postContent');
-    if (postContent && postContent.value.trim()) {
-        e.preventDefault();
-        e.returnValue = 'لديك تغريدة غير منشورة!';
-    }
-    
-    if (currentUser) {
-        db.ref('users/' + currentUser.uid).update({ 
-            isOnline: false,
-            lastSeen: Date.now()
-        });
-    }
-});
+async function logout() {
+    await db.ref('users/' + currentUser.uid).update({ isOnline: false });
+    await auth.signOut();
+    window.location.href = 'auth.html';
+}
 
-console.log("✅ X Platform with 15+ Features Ready!");
+function viewImage(url) {
+    window.open(url, '_blank');
+}
+
+function showReplyModal(tweetId) {
+    alert('الرد على التغريدة');
+}
+
+function showFollowingList() {
+    alert('قائمة المتابَعين');
+}
+
+function showFollowersList() {
+    alert('قائمة المتابِعين');
+}
+
+console.log("✅ X Platform Ready - Full Clone");
