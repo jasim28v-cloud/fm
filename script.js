@@ -5,25 +5,14 @@ let currentChatUser = null;
 let currentProfileUser = null;
 let selectedMediaFile = null;
 let editingPostId = null;
-let mediaRecorder = null;
-let audioChunks = [];
-let isRecording = false;
-let typingTimeout = null;
 let currentReportPostId = null;
 let selectedReportReason = null;
-let hideLikesActive = false;
-let currentImageUrls = [];
-let currentImageIndex = 0;
-
-// ==================== Infinite Scroll Variables ====================
 let allPostsCache = [];
 let currentDisplayCount = 0;
 let isLoadingMore = false;
 let hasMorePosts = true;
-const POSTS_PER_BATCH = 10;
-
-// ==================== Bad Words ====================
 let badWordsList = [];
+const POSTS_PER_BATCH = 10;
 
 // ==================== Helper Functions ====================
 function showToast(message, duration = 2000) {
@@ -315,11 +304,11 @@ async function displayPosts(start, count) {
                         <div class="post-text">${textHtml}</div>
                         ${mediaHtml}
                         <div class="post-actions">
-                            <button class="post-action ${isLiked ? 'liked' : ''}" onclick="likePost('${post.id}')"><i class="fa-regular fa-heart"></i> ${likesCount || ''}</button>
-                            <button class="post-action" onclick="openComments('${post.id}')"><i class="fa-regular fa-comment"></i> ${post.commentsCount || ''}</button>
+                            <button class="post-action ${isLiked ? 'liked' : ''}" onclick="event.stopPropagation(); likePost('${post.id}')"><i class="fa-regular fa-heart"></i> ${likesCount || ''}</button>
+                            <button class="post-action" onclick="event.stopPropagation(); openComments('${post.id}')"><i class="fa-regular fa-comment"></i> ${post.commentsCount || ''}</button>
                             <button class="post-action"><i class="fa-regular fa-retweet"></i></button>
-                            <button class="post-action ${isSaved ? 'saved' : ''}" onclick="savePost('${post.id}')"><i class="fa-regular fa-bookmark"></i></button>
-                            <button class="post-action" onclick="deletePost('${post.id}')"><i class="fa-regular fa-trash-can"></i></button>
+                            <button class="post-action ${isSaved ? 'saved' : ''}" onclick="event.stopPropagation(); savePost('${post.id}')"><i class="fa-regular fa-bookmark"></i></button>
+                            <button class="post-action" onclick="event.stopPropagation(); deletePost('${post.id}')"><i class="fa-regular fa-trash-can"></i></button>
                         </div>
                     </div>
                 </div>
@@ -348,9 +337,7 @@ async function loadMorePosts() {
     isLoadingMore = false;
 }
 
-async function refreshFeedCache() {
-    await loadAllPostsToCache();
-}
+async function refreshFeedCache() { await loadAllPostsToCache(); }
 
 // ==================== Profile ====================
 async function openMyProfile() { if (currentUser) openProfile(currentUser.uid); }
@@ -366,6 +353,10 @@ async function openProfile(userId) {
     const following = await db.ref(`following/${userId}`).once('value');
     document.getElementById('profileFollowersCount').textContent = followers.exists() ? Object.keys(followers.val()).length : 0;
     document.getElementById('profileFollowingCount').textContent = following.exists() ? Object.keys(following.val()).length : 0;
+    
+    const avatarEl = document.getElementById('profileAvatarLarge');
+    avatarEl.innerHTML = user.avatar ? `<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;">` : '<i class="fa-solid fa-user"></i>';
+    
     const btnDiv = document.getElementById('profileButtons');
     if (userId !== currentUser.uid) {
         const isFollowing = (await db.ref(`followers/${userId}/${currentUser.uid}`).once('value')).exists();
@@ -411,9 +402,13 @@ async function toggleFollow(userId) {
 function closeProfile() { document.getElementById('profilePanel').classList.remove('open'); }
 
 function openEditProfileModal() {
-    document.getElementById('editName').value = currentUser.name || '';
-    document.getElementById('editBio').value = currentUser.bio || '';
-    document.getElementById('editProfileModal')?.classList.add('open');
+    const newName = prompt('الاسم الجديد:', currentUser.name);
+    if (newName) {
+        currentUser.updateProfile({ displayName: newName });
+        db.ref(`users/${currentUser.uid}`).update({ name: newName });
+        updateSidebarUser();
+        showToast('تم تحديث الملف');
+    }
 }
 
 // ==================== Chat ====================
@@ -478,12 +473,11 @@ async function searchAll() {
     if (!query) return;
     const usersSnap = await db.ref('users').once('value');
     const users = usersSnap.val();
-    const results = users ? Object.values(users).filter(u => u.name?.toLowerCase().includes(query)) : [];
+    const results = users ? Object.values(users).filter(u => u.name?.toLowerCase().includes(query) || u.email?.toLowerCase().includes(query)) : [];
     document.getElementById('searchResults').innerHTML = results.map(u => `<div style="padding:12px;cursor:pointer;" onclick="closeSearch();openProfile('${u.uid}')">${u.name} (@${u.email?.split('@')[0]})</div>`).join('');
 }
 function openSearch() { document.getElementById('searchPanel').classList.add('open'); }
 function closeSearch() { document.getElementById('searchPanel').classList.remove('open'); }
-
 async function searchHashtag(tag) { openSearch(); document.getElementById('searchInput').value = `#${tag}`; searchAll(); }
 
 // ==================== Saved Posts ====================
@@ -555,8 +549,6 @@ function toggleTheme() {
     localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
 }
 function switchTab(tab) { if (tab === 'home') refreshFeedCache(); }
-function goToHome() { refreshFeedCache(); }
-function showLogoutMenu() { if (confirm('تسجيل الخروج؟')) logout(); }
 
 async function logout() {
     await auth.signOut();
