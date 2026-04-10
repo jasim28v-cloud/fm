@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة X الأسطورية</title>
-    <!-- Firebase SDK -->
+    <title>X</title>
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -18,915 +18,1343 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
 
         :root {
-            --bg-primary: #f0f2f5;
-            --bg-secondary: white;
-            --text-primary: #0f1419;
-            --text-secondary: #536471;
-            --border-color: #e1e8ed;
-            --accent-blue: #1da1f2;
-            --accent-red: #e0245e;
+            --bg-primary: #000000;
+            --bg-secondary: #16181c;
+            --bg-hover: #1d1f23;
+            --text-primary: #e7e9ea;
+            --text-secondary: #71767b;
+            --border-color: #2f3336;
+            --accent-blue: #1d9bf0;
+            --accent-red: #f4212e;
             --accent-green: #00ba7c;
-            --shadow: rgba(0,0,0,0.1);
-        }
-
-        body.dark-mode {
-            --bg-primary: #15202b;
-            --bg-secondary: #1e2732;
-            --text-primary: #f7f9fa;
-            --text-secondary: #8899a6;
-            --border-color: #38444d;
-            --shadow: rgba(255,255,255,0.05);
+            --accent-yellow: #ffd400;
         }
 
         body {
             background: var(--bg-primary);
             color: var(--text-primary);
-            transition: background 0.3s, color 0.3s;
         }
 
-        /* شريط التنقل */
-        .navbar {
-            background: var(--bg-secondary);
-            padding: 12px 24px;
-            box-shadow: 0 2px 4px var(--shadow);
+        /* ========== تخطيط X الأصلي ========== */
+        .app {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: fixed;
+            max-width: 1300px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+
+        /* ========== الشريط الجانبي الأيسر ========== */
+        .sidebar-left {
+            width: 275px;
+            padding: 0 12px;
+            position: sticky;
             top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            transition: all 0.3s;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border-color);
+        }
+
+        .logo-container {
+            padding: 12px;
         }
 
         .logo {
-            font-size: 28px;
-            font-weight: bold;
-            color: var(--accent-blue);
-        }
-
-        .search-container {
-            position: relative;
-            width: 350px;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 10px 40px 10px 15px;
-            border: none;
-            border-radius: 30px;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            font-size: 14px;
-        }
-
-        .search-input:focus {
-            outline: 2px solid var(--accent-blue);
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-secondary);
-        }
-
-        .user-info {
+            width: 50px;
+            height: 50px;
             display: flex;
             align-items: center;
-            gap: 20px;
-        }
-
-        .notification-badge {
-            position: relative;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
             cursor: pointer;
         }
 
-        .badge-count {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: var(--accent-red);
-            color: white;
-            font-size: 11px;
-            padding: 2px 6px;
-            border-radius: 10px;
-            min-width: 18px;
-            text-align: center;
+        .logo:hover {
+            background: var(--bg-hover);
         }
 
-        .user-avatar {
+        .logo svg {
+            width: 30px;
+            height: 30px;
+            fill: var(--text-primary);
+        }
+
+        .nav-menu {
+            flex: 1;
+            margin-top: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 12px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: var(--text-primary);
+            font-size: 20px;
+            font-weight: 400;
+            margin-bottom: 4px;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .nav-item.active {
+            font-weight: 700;
+        }
+
+        .nav-item i {
+            width: 28px;
+            font-size: 24px;
+        }
+
+        .nav-item span {
+            font-size: 20px;
+        }
+
+        .post-btn {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 90%;
+            margin: 16px 0;
+            transition: background 0.2s;
+        }
+
+        .post-btn:hover {
+            background: #1a8cd8;
+        }
+
+        .user-profile-mini {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: background 0.2s;
+        }
+
+        .user-profile-mini:hover {
+            background: var(--bg-hover);
+        }
+
+        .user-avatar-mini {
             width: 40px;
             height: 40px;
             border-radius: 50%;
             background: var(--accent-blue);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
+            background-size: cover;
+            background-position: center;
         }
 
-        .online-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: var(--accent-green);
-            border: 2px solid var(--bg-secondary);
+        .user-info-mini {
+            flex: 1;
+        }
+
+        .user-name-mini {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .user-username-mini {
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+
+        /* ========== المنطقة الوسطى - التغريدات ========== */
+        .main-content {
+            flex: 1;
+            max-width: 600px;
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+        }
+
+        .home-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+        }
+
+        .home-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .tabs-header {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-header {
+            flex: 1;
+            text-align: center;
+            padding: 16px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .tab-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .tab-header.active {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .tab-header.active::after {
+            content: '';
             position: absolute;
             bottom: 0;
-            right: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 56px;
+            height: 4px;
+            background: var(--accent-blue);
+            border-radius: 4px;
         }
 
-        .logout-btn {
-            background: var(--accent-red);
-            color: white;
+        /* صندوق إنشاء تغريدة */
+        .compose-tweet {
+            padding: 12px 16px;
+            display: flex;
+            gap: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .compose-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            background-size: cover;
+            background-position: center;
+            flex-shrink: 0;
+        }
+
+        .compose-form {
+            flex: 1;
+        }
+
+        .compose-input {
+            width: 100%;
+            background: transparent;
             border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
+            color: var(--text-primary);
+            font-size: 20px;
+            padding: 12px 0;
+            resize: none;
+            outline: none;
         }
 
-        .logout-btn:hover {
-            opacity: 0.9;
-            transform: scale(1.05);
+        .compose-input::placeholder {
+            color: var(--text-secondary);
         }
 
-        /* تخطيط رئيسي */
-        .container {
-            max-width: 1200px;
-            margin: 80px auto 20px;
-            padding: 0 20px;
-            display: grid;
-            grid-template-columns: 250px 1fr 300px;
-            gap: 20px;
-        }
-
-        /* القائمة الجانبية */
-        .sidebar {
-            background: var(--bg-secondary);
-            border-radius: 16px;
-            padding: 20px;
-            height: fit-content;
-            position: sticky;
-            top: 80px;
-        }
-
-        .menu-item {
+        .compose-actions {
             display: flex;
             align-items: center;
-            gap: 15px;
-            padding: 12px;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-bottom: 5px;
-        }
-
-        .menu-item:hover {
-            background: var(--bg-primary);
-        }
-
-        .menu-item.active {
-            color: var(--accent-blue);
-            font-weight: bold;
-        }
-
-        .shortcuts-help {
-            margin-top: 20px;
-            padding-top: 20px;
+            justify-content: space-between;
+            margin-top: 12px;
+            padding-top: 12px;
             border-top: 1px solid var(--border-color);
-            font-size: 12px;
-            color: var(--text-secondary);
         }
 
-        .shortcuts-help kbd {
-            background: var(--bg-primary);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
-        }
-
-        /* منطقة التغريدات */
-        .feed {
-            background: var(--bg-secondary);
-            border-radius: 16px;
-            padding: 20px;
-        }
-
-        .post-creator {
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 20px;
-            margin-bottom: 20px;
-        }
-
-        .post-input {
-            width: 100%;
-            border: none;
-            outline: none;
-            font-size: 18px;
-            padding: 15px;
-            background: var(--bg-primary);
-            border-radius: 16px;
-            margin-bottom: 15px;
-            resize: none;
-            color: var(--text-primary);
-        }
-
-        .char-counter {
-            text-align: left;
-            font-size: 13px;
-            color: var(--text-secondary);
-            margin-bottom: 10px;
-        }
-
-        .char-counter.warning {
-            color: #ffad1f;
-        }
-
-        .char-counter.danger {
-            color: var(--accent-red);
-        }
-
-        .post-actions {
+        .compose-icons {
             display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
+            gap: 16px;
         }
 
-        .action-btn {
-            background: none;
-            border: none;
+        .compose-icon {
             color: var(--accent-blue);
             cursor: pointer;
             font-size: 20px;
-            padding: 5px 10px;
-            border-radius: 20px;
-            transition: all 0.3s;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
         }
 
-        .action-btn:hover {
-            background: var(--bg-primary);
+        .compose-icon:hover {
+            background: rgba(29, 155, 240, 0.1);
         }
 
-        .recording-btn.recording {
-            color: var(--accent-red);
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-
-        .post-submit {
+        .compose-submit {
             background: var(--accent-blue);
             color: white;
             border: none;
-            padding: 10px 30px;
             border-radius: 30px;
-            font-size: 16px;
-            font-weight: bold;
+            padding: 10px 20px;
+            font-size: 15px;
+            font-weight: 700;
             cursor: pointer;
-            float: left;
-            transition: all 0.3s;
+            transition: background 0.2s;
         }
 
-        .post-submit:hover {
-            opacity: 0.9;
-            transform: scale(1.02);
-        }
-
-        .post-submit:disabled {
+        .compose-submit:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
 
-        .image-preview {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin: 15px 0;
-        }
-
-        .preview-image {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 12px;
-            cursor: pointer;
-        }
-
-        .link-preview {
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 10px;
-            margin: 10px 0;
-            display: flex;
-            gap: 10px;
-        }
-
-        .link-preview img {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 12px;
-        }
-
-        .audio-preview {
-            margin: 10px 0;
-            width: 100%;
-        }
-
-        /* Skeleton Loading */
-        .skeleton-post {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-color);
-            padding: 15px;
-            margin-bottom: 10px;
-        }
-
-        .skeleton-avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: linear-gradient(90deg, var(--border-color) 25%, var(--bg-primary) 50%, var(--border-color) 75%);
-            background-size: 200% 100%;
-            animation: skeleton-loading 1.5s infinite;
-            float: right;
-            margin-left: 10px;
-        }
-
-        .skeleton-line {
-            height: 16px;
-            background: linear-gradient(90deg, var(--border-color) 25%, var(--bg-primary) 50%, var(--border-color) 75%);
-            background-size: 200% 100%;
-            animation: skeleton-loading 1.5s infinite;
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
-
-        .skeleton-line.short {
-            width: 60%;
-        }
-
-        @keyframes skeleton-loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
         /* التغريدات */
-        .post {
-            border-bottom: 1px solid var(--border-color);
-            padding: 15px 0;
-            transition: background 0.3s;
-        }
-
-        .post:hover {
-            background: var(--bg-primary);
-        }
-
-        .post-header {
+        .tweet {
+            padding: 12px 16px;
             display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 12px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s;
         }
 
-        .post-avatar {
+        .tweet:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tweet-avatar {
             width: 48px;
             height: 48px;
             border-radius: 50%;
             background: var(--accent-blue);
+            background-size: cover;
+            background-position: center;
+            flex-shrink: 0;
+        }
+
+        .tweet-content {
+            flex: 1;
+        }
+
+        .tweet-header {
             display: flex;
             align-items: center;
-            justify-content: center;
-            color: white;
-            position: relative;
+            gap: 4px;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
         }
 
-        .post-author {
-            font-weight: bold;
+        .tweet-name {
+            font-weight: 700;
+            color: var(--text-primary);
         }
 
-        .post-username {
+        .tweet-name:hover {
+            text-decoration: underline;
+        }
+
+        .tweet-username,
+        .tweet-time {
             color: var(--text-secondary);
         }
 
-        .post-content {
-            margin-bottom: 15px;
+        .verified-icon {
+            color: var(--accent-blue);
+            font-size: 18px;
+            margin: 0 2px;
+        }
+
+        .tweet-text {
+            color: var(--text-primary);
             line-height: 1.5;
+            margin-bottom: 12px;
         }
 
-        .post-content a {
-            color: var(--accent-blue);
-            text-decoration: none;
-        }
-
-        .post-content .hashtag {
-            color: var(--accent-blue);
-        }
-
-        .post-images {
+        .tweet-images {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-            margin: 10px 0;
+            gap: 4px;
+            margin-bottom: 12px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
         }
 
-        .post-image {
+        .tweet-image {
             width: 100%;
-            border-radius: 16px;
             max-height: 300px;
             object-fit: cover;
             cursor: pointer;
-            transition: transform 0.3s;
         }
 
-        .post-image:hover {
-            transform: scale(1.02);
-        }
-
-        .post-audio {
+        .tweet-audio {
             width: 100%;
-            margin: 10px 0;
+            margin-bottom: 12px;
         }
 
-        .post-footer {
+        .tweet-actions {
             display: flex;
-            gap: 30px;
-            color: var(--text-secondary);
+            justify-content: space-between;
+            max-width: 425px;
+            margin-top: 12px;
         }
 
-        .post-action {
+        .tweet-action {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
+            color: var(--text-secondary);
             cursor: pointer;
-            transition: all 0.3s;
-            padding: 5px 10px;
-            border-radius: 20px;
+            padding: 6px;
+            border-radius: 30px;
+            transition: all 0.2s;
         }
 
-        .post-action:hover {
-            background: var(--bg-primary);
+        .tweet-action:hover {
+            background: rgba(29, 155, 240, 0.1);
+            color: var(--accent-blue);
         }
 
-        .post-action.liked {
+        .tweet-action.liked {
             color: var(--accent-red);
         }
 
-        .post-action.retweeted {
+        .tweet-action.retweeted {
             color: var(--accent-green);
         }
 
-        .post-action.bookmarked {
-            color: var(--accent-blue);
-        }
-
-        .verified-badge {
-            color: var(--accent-blue);
-            margin-left: 5px;
-        }
-
-        /* الشريط الجانبي الأيمن */
-        .right-sidebar {
-            background: var(--bg-secondary);
-            border-radius: 16px;
-            padding: 20px;
-            height: fit-content;
+        /* ========== الشريط الجانبي الأيمن ========== */
+        .sidebar-right {
+            width: 350px;
+            padding: 8px 16px;
             position: sticky;
-            top: 80px;
+            top: 0;
+            height: 100vh;
         }
 
-        .trending-section {
-            margin-bottom: 20px;
+        .search-container {
+            position: sticky;
+            top: 8px;
+            background: var(--bg-primary);
+            padding: 8px 0;
+            z-index: 10;
         }
 
-        .trending-item {
-            padding: 10px 0;
-            border-bottom: 1px solid var(--border-color);
-            cursor: pointer;
-            transition: background 0.3s;
+        .search-box {
+            background: var(--bg-secondary);
+            border-radius: 30px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid transparent;
+            transition: border 0.2s;
         }
 
-        .trending-item:hover {
+        .search-box:focus-within {
+            border-color: var(--accent-blue);
             background: var(--bg-primary);
         }
 
-        .trending-topic {
-            font-weight: bold;
-        }
-
-        .trending-count {
-            font-size: 12px;
+        .search-box i {
             color: var(--text-secondary);
         }
 
-        .suggested-users {
-            margin-top: 20px;
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 15px;
+            outline: none;
+            width: 100%;
         }
 
-        .suggested-user {
+        .trending-card,
+        .follow-card {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            margin-top: 16px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 12px 16px;
+            font-size: 20px;
+            font-weight: 800;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .trending-item,
+        .follow-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .trending-item:hover,
+        .follow-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .trending-category {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .trending-topic {
+            font-weight: 700;
+            font-size: 15px;
+            margin: 4px 0;
+        }
+
+        .trending-count {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .follow-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 0;
         }
 
-        .follow-btn {
-            background: var(--text-primary);
-            color: var(--bg-secondary);
-            border: none;
-            padding: 5px 15px;
-            border-radius: 20px;
-            cursor: pointer;
+        .follow-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .follow-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            background-size: cover;
+        }
+
+        .follow-name {
+            font-weight: 700;
+        }
+
+        .follow-username {
+            color: var(--text-secondary);
             font-size: 14px;
-            transition: all 0.3s;
         }
 
-        .follow-btn.following {
+        .follow-btn-small {
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            border: none;
+            border-radius: 30px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .follow-btn-small.following {
             background: transparent;
             color: var(--text-primary);
             border: 1px solid var(--border-color);
         }
 
-        /* لوحة تحكم المدير */
-        .admin-panel {
-            background: var(--bg-secondary);
-            border-radius: 16px;
-            padding: 20px;
-            margin-top: 20px;
-            display: none;
-        }
-
-        .admin-panel.visible {
-            display: block;
-        }
-
-        .admin-section {
-            margin-bottom: 20px;
-        }
-
-        .admin-section h3 {
-            margin-bottom: 15px;
-            color: var(--text-primary);
-        }
-
-        .user-management-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .ban-btn, .verify-btn, .delete-btn {
-            padding: 5px 12px;
-            border-radius: 15px;
-            border: none;
+        .show-more {
+            padding: 16px;
+            color: var(--accent-blue);
             cursor: pointer;
-            font-size: 12px;
-            margin-left: 5px;
-            transition: all 0.3s;
         }
 
-        .ban-btn {
-            background: var(--accent-red);
-            color: white;
-        }
-
-        .verify-btn {
-            background: var(--accent-blue);
-            color: white;
-        }
-
-        .delete-btn {
-            background: #ffad1f;
-            color: white;
-        }
-
-        /* إشعارات Toast */
-        .toast-container {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            z-index: 9999;
-        }
-
-        .toast {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            padding: 12px 20px;
-            border-radius: 12px;
-            margin-top: 10px;
-            box-shadow: 0 4px 12px var(--shadow);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            animation: slideIn 0.3s ease;
-            max-width: 300px;
-        }
-
-        .toast.success {
-            border-right: 4px solid var(--accent-green);
-        }
-
-        .toast.error {
-            border-right: 4px solid var(--accent-red);
-        }
-
-        .toast.info {
-            border-right: 4px solid var(--accent-blue);
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        @keyframes slideOut {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-        }
-
-        /* زر العودة للأعلى */
-        .scroll-top-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: var(--accent-blue);
-            color: white;
-            border: none;
-            cursor: pointer;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 4px 12px var(--shadow);
-            transition: all 0.3s;
-            z-index: 1000;
-        }
-
-        .scroll-top-btn:hover {
-            transform: scale(1.1);
-        }
-
-        .scroll-top-btn.visible {
-            display: flex;
-        }
-
-        /* نافذة عرض الصورة */
-        .image-modal {
+        /* ========== نافذة تعديل الملف الشخصي ========== */
+        .modal-overlay {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.9);
-            z-index: 9999;
+            background: rgba(91, 112, 131, 0.4);
+            z-index: 1000;
             align-items: center;
             justify-content: center;
         }
 
-        .image-modal.active {
+        .modal-overlay.active {
             display: flex;
         }
 
-        .image-modal img {
-            max-width: 90%;
-            max-height: 90%;
-            border-radius: 16px;
-        }
-
-        .image-modal-close {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: white;
-            font-size: 30px;
-            cursor: pointer;
-        }
-
-        /* زر تحميل المزيد */
-        .load-more-btn {
-            width: 100%;
-            padding: 15px;
+        .modal {
             background: var(--bg-primary);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            flex: 1;
+        }
+
+        .modal-close,
+        .modal-back {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .modal-close:hover,
+        .modal-back:hover {
+            background: var(--bg-hover);
+        }
+
+        .modal-body {
+            padding: 16px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .cover-image-section {
+            height: 200px;
+            background: #2f3336;
+            position: relative;
+            cursor: pointer;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .cover-edit-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 700;
+            backdrop-filter: blur(4px);
+        }
+
+        .avatar-section-edit {
+            position: relative;
+            margin-top: -60px;
+            margin-bottom: 20px;
+            padding: 0 16px;
+        }
+
+        .avatar-edit {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 4px solid var(--bg-primary);
+            background: var(--accent-blue);
+            cursor: pointer;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+
+        .avatar-edit-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 700;
+            backdrop-filter: blur(4px);
+            white-space: nowrap;
+        }
+
+        .form-group-edit {
+            margin-bottom: 20px;
+        }
+
+        .form-group-edit label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .form-group-edit input,
+        .form-group-edit textarea {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 16px;
+            outline: none;
+        }
+
+        .form-group-edit input:focus,
+        .form-group-edit textarea:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .save-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--text-primary);
+            color: var(--bg-primary);
             border: none;
             border-radius: 30px;
-            color: var(--accent-blue);
-            font-weight: bold;
+            font-size: 15px;
+            font-weight: 700;
             cursor: pointer;
-            margin-top: 20px;
-            transition: all 0.3s;
+            margin-top: 16px;
         }
 
-        .load-more-btn:hover {
-            background: var(--border-color);
+        /* ========== لوحة تحكم المدير ========== */
+        .admin-panel-modal .modal {
+            max-width: 800px;
+        }
+
+        .admin-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .admin-tab {
+            flex: 1;
+            text-align: center;
+            padding: 16px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .admin-tab:hover {
+            background: var(--bg-hover);
+        }
+
+        .admin-tab.active {
+            color: var(--accent-blue);
+            border-bottom: 2px solid var(--accent-blue);
+        }
+
+        .admin-tab-content {
+            display: none;
+            padding: 16px;
+        }
+
+        .admin-tab-content.active {
+            display: block;
+        }
+
+        .admin-user-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .admin-user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .admin-user-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            background-size: cover;
+        }
+
+        .admin-user-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .admin-btn {
+            padding: 6px 12px;
+            border-radius: 30px;
+            border: none;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .admin-btn.verify {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .admin-btn.ban {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .admin-btn.warn {
+            background: var(--accent-yellow);
+            color: black;
+        }
+
+        .admin-btn.delete {
+            background: var(--text-secondary);
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .stat-box {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-box .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .stat-box .label {
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        /* ========== نافذة عرض الملف الشخصي ========== */
+        .profile-view-modal .modal {
+            max-width: 600px;
+        }
+
+        .profile-cover-view {
+            height: 200px;
+            background: #2f3336;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .profile-header-view {
+            padding: 12px 16px;
+            position: relative;
+        }
+
+        .profile-avatar-view {
+            width: 133px;
+            height: 133px;
+            border-radius: 50%;
+            border: 4px solid var(--bg-primary);
+            background: var(--accent-blue);
+            background-size: cover;
+            margin-top: -66px;
+            margin-bottom: 12px;
+        }
+
+        .profile-actions-view {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .profile-name-view {
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .profile-username-view {
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .profile-bio-view {
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .profile-meta-view {
+            display: flex;
+            gap: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .profile-stats-view {
+            display: flex;
+            gap: 20px;
+            padding: 16px 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .stat-item {
+            cursor: pointer;
+        }
+
+        .stat-item:hover {
+            text-decoration: underline;
+        }
+
+        .stat-number {
+            font-weight: 700;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+        }
+
+        /* ========== نافذة الرسائل ========== */
+        .messages-modal .modal {
+            max-width: 400px;
+            height: 600px;
+        }
+
+        .messages-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .messages-list {
+            height: calc(100% - 120px);
+            overflow-y: auto;
+        }
+
+        .message-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .message-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .message-input-container {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 12px;
+        }
+
+        .message-input {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .send-message-btn {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+        }
+
+        /* تحميل */
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            color: var(--accent-blue);
+        }
+
+        .hidden {
+            display: none !important;
         }
 
         /* استجابة للجوال */
-        @media (max-width: 768px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-            
-            .sidebar, .right-sidebar {
+        @media (max-width: 1000px) {
+            .sidebar-right {
                 display: none;
             }
-            
-            .search-container {
+        }
+
+        @media (max-width: 700px) {
+            .sidebar-left {
+                width: 88px;
+            }
+            .nav-item span,
+            .user-info-mini,
+            .post-btn span {
                 display: none;
+            }
+            .post-btn {
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
+                padding: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .post-btn::after {
+                content: '+';
+                font-size: 24px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- شريط التنقل -->
-    <div class="navbar">
-        <div class="logo" onclick="location.reload()">𝕏</div>
-        
-        <div class="search-container">
-            <input type="text" class="search-input" placeholder="ابحث في المنصة..." id="searchInput">
-            <i class="fas fa-search search-icon"></i>
-        </div>
-        
-        <div class="user-info">
-            <div class="notification-badge" onclick="showNotifications()">
-                <i class="far fa-bell" style="font-size: 24px; color: var(--text-primary);"></i>
-                <span class="badge-count" id="notificationCount" style="display: none;">0</span>
+    <div class="app">
+        <!-- الشريط الجانبي الأيسر -->
+        <div class="sidebar-left">
+            <div class="logo-container">
+                <div class="logo" onclick="location.reload()">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                </div>
             </div>
             
-            <div style="position: relative;">
-                <div class="user-avatar" id="userAvatar"></div>
-                <span class="online-indicator" id="onlineIndicator"></span>
+            <div class="nav-menu">
+                <div class="nav-item active" onclick="location.reload()">
+                    <i class="fas fa-home"></i>
+                    <span>الرئيسية</span>
+                </div>
+                <div class="nav-item" onclick="showExplore()">
+                    <i class="fas fa-hashtag"></i>
+                    <span>استكشاف</span>
+                </div>
+                <div class="nav-item" onclick="showNotifications()">
+                    <i class="far fa-bell"></i>
+                    <span>الإشعارات</span>
+                </div>
+                <div class="nav-item" onclick="showMessages()">
+                    <i class="far fa-envelope"></i>
+                    <span>الرسائل</span>
+                </div>
+                <div class="nav-item" onclick="showBookmarks()">
+                    <i class="far fa-bookmark"></i>
+                    <span>المحفوظات</span>
+                </div>
+                <div class="nav-item" onclick="openProfileModal()">
+                    <i class="far fa-user"></i>
+                    <span>الملف الشخصي</span>
+                </div>
+                <div class="nav-item" id="adminNavItem" onclick="openAdminPanel()" style="display: none;">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>لوحة التحكم</span>
+                </div>
             </div>
             
-            <span id="userDisplayName"></span>
-            
-            <button class="logout-btn" onclick="logout()">تسجيل خروج</button>
-            
-            <button onclick="toggleTheme()" style="background: none; border: none; cursor: pointer; font-size: 20px;" title="تبديل الوضع الليلي">
-                <i class="fas fa-moon" id="themeIcon"></i>
+            <button class="post-btn" onclick="focusCompose()">
+                <span>تغريد</span>
             </button>
+            
+            <div class="user-profile-mini" onclick="openProfileModal()">
+                <div class="user-avatar-mini" id="currentUserAvatarMini"></div>
+                <div class="user-info-mini">
+                    <div class="user-name-mini" id="currentUserNameMini"></div>
+                    <div class="user-username-mini" id="currentUserUsernameMini"></div>
+                </div>
+                <i class="fas fa-ellipsis-h" onclick="event.stopPropagation(); showLogoutMenu()"></i>
+            </div>
         </div>
-    </div>
-
-    <!-- المحتوى الرئيسي -->
-    <div class="container">
-        <!-- القائمة الجانبية -->
-        <div class="sidebar">
-            <div class="menu-item active" onclick="window.location.reload()">
-                <i class="fas fa-home"></i>
-                <span>الرئيسية</span>
-            </div>
-            <div class="menu-item" onclick="showBookmarks()">
-                <i class="far fa-bookmark"></i>
-                <span>المحفوظات</span>
-            </div>
-            <div class="menu-item">
-                <i class="fas fa-hashtag"></i>
-                <span>استكشاف</span>
-            </div>
-            <div class="menu-item" onclick="showNotifications()">
-                <i class="far fa-bell"></i>
-                <span>الإشعارات</span>
-            </div>
-            <div class="menu-item" onclick="viewProfile()">
-                <i class="far fa-user"></i>
-                <span>الملف الشخصي</span>
-            </div>
-            <div class="menu-item" onclick="openSettings()">
-                <i class="fas fa-cog"></i>
-                <span>الإعدادات</span>
+        
+        <!-- المنطقة الوسطى -->
+        <div class="main-content">
+            <div class="home-header">
+                <h2>الرئيسية</h2>
             </div>
             
-            <div class="shortcuts-help">
-                <strong>⌨️ اختصارات:</strong><br>
-                <kbd>N</kbd> تغريدة جديدة<br>
-                <kbd>/</kbd> بحث سريع<br>
-                <kbd>Ctrl+Enter</kbd> إرسال<br>
-                <kbd>Esc</kbd> إغلاق
+            <div class="tabs-header">
+                <div class="tab-header active">لك</div>
+                <div class="tab-header">المتابَعون</div>
             </div>
-        </div>
-
-        <!-- منطقة التغريدات -->
-        <div class="feed">
+            
             <!-- صندوق إنشاء تغريدة -->
-            <div class="post-creator">
-                <textarea class="post-input" id="postContent" placeholder="ماذا يحدث؟" maxlength="280"></textarea>
-                <div class="char-counter" id="charCounter">0/280</div>
-                
-                <div class="image-preview" id="imagePreview"></div>
-                <div id="linkPreviewContainer"></div>
-                <audio class="audio-preview" id="audioPreview" controls style="display:none;"></audio>
-                
-                <div class="post-actions">
-                    <button class="action-btn" onclick="document.getElementById('imageInput').click()" title="إضافة صورة">
-                        <i class="far fa-image"></i>
-                    </button>
-                    <input type="file" id="imageInput" accept="image/*" multiple style="display:none;">
+            <div class="compose-tweet">
+                <div class="compose-avatar" id="composeAvatar"></div>
+                <div class="compose-form">
+                    <textarea class="compose-input" id="composeInput" placeholder="ماذا يحدث؟" rows="1"></textarea>
                     
-                    <button class="action-btn recording-btn" id="recordBtn" onclick="toggleRecording()" title="تسجيل صوتي">
-                        <i class="fas fa-microphone"></i>
-                    </button>
+                    <div id="imagePreviewContainer" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;"></div>
+                    <audio id="audioPreview" controls style="display: none; width: 100%; margin-top: 12px;"></audio>
                     
-                    <button class="action-btn" onclick="showEmojiPicker()" title="إيموجي">
-                        <i class="far fa-smile"></i>
-                    </button>
-                    
-                    <button class="action-btn" onclick="createPoll()" title="استطلاع">
-                        <i class="fas fa-chart-bar"></i>
-                    </button>
+                    <div class="compose-actions">
+                        <div class="compose-icons">
+                            <i class="compose-icon far fa-image" onclick="document.getElementById('imageInput').click()"></i>
+                            <i class="compose-icon fas fa-microphone" id="recordBtn" onclick="toggleRecording()"></i>
+                            <i class="compose-icon far fa-smile"></i>
+                            <i class="compose-icon far fa-calendar"></i>
+                            <i class="compose-icon fas fa-map-marker-alt"></i>
+                        </div>
+                        <input type="file" id="imageInput" accept="image/*" multiple style="display: none;">
+                        <button class="compose-submit" id="composeSubmit" onclick="createTweet()" disabled>تغريد</button>
+                    </div>
                 </div>
-                
-                <button class="post-submit" id="postSubmitBtn" onclick="createPost()">تغريد</button>
-                <div style="clear: both;"></div>
             </div>
-
+            
             <!-- قائمة التغريدات -->
-            <div id="postsContainer"></div>
-            
-            <!-- زر تحميل المزيد -->
-            <button class="load-more-btn" id="loadMoreBtn" onclick="loadMorePosts()" style="display: none;">
-                تحميل المزيد من التغريدات
-            </button>
+            <div id="tweetsContainer"></div>
         </div>
-
+        
         <!-- الشريط الجانبي الأيمن -->
-        <div class="right-sidebar">
-            <!-- المواضيع الرائجة -->
-            <div class="trending-section">
-                <h3>المواضيع الرائجة</h3>
-                <div id="trendingTopics"></div>
+        <div class="sidebar-right">
+            <div class="search-container">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="بحث">
+                </div>
             </div>
             
-            <h3>اقتراحات للمتابعة</h3>
-            <div class="suggested-users" id="suggestedUsers"></div>
+            <div class="trending-card">
+                <div class="card-header">ما يحدث</div>
+                <div id="trendingList"></div>
+                <div class="show-more">عرض المزيد</div>
+            </div>
             
-            <!-- لوحة تحكم المدير -->
-            <div class="admin-panel" id="adminPanel">
-                <h2>🎯 لوحة تحكم المدير</h2>
-                
-                <div class="admin-section">
-                    <h3>إدارة المستخدمين</h3>
-                    <div id="usersList"></div>
+            <div class="follow-card">
+                <div class="card-header">من يمكنك متابعته</div>
+                <div id="suggestedUsersList"></div>
+                <div class="show-more">عرض المزيد</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ========== نافذة تعديل الملف الشخصي ========== -->
+    <div class="modal-overlay" id="profileEditModal">
+        <div class="modal">
+            <div class="modal-header">
+                <button class="modal-close" onclick="closeProfileEditModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+                <h2>تعديل الملف الشخصي</h2>
+                <button class="save-btn" style="width: auto; padding: 8px 16px;" onclick="saveProfile()">حفظ</button>
+            </div>
+            <div class="modal-body">
+                <div class="cover-image-section" id="coverImageEdit" onclick="document.getElementById('coverInput').click()">
+                    <span class="cover-edit-btn"><i class="fas fa-camera"></i> تغيير صورة الغلاف</span>
+                    <input type="file" id="coverInput" accept="image/*" style="display: none;">
                 </div>
                 
-                <div class="admin-section">
-                    <h3>إدارة المحتوى</h3>
-                    <div id="contentList"></div>
+                <div class="avatar-section-edit">
+                    <div class="avatar-edit" id="avatarEdit" onclick="document.getElementById('avatarEditInput').click()">
+                        <span class="avatar-edit-overlay"><i class="fas fa-camera"></i> تغيير</span>
+                    </div>
+                    <input type="file" id="avatarEditInput" accept="image/*" style="display: none;">
                 </div>
                 
-                <div class="admin-section">
-                    <h3>إحصائيات</h3>
-                    <div id="statsPanel"></div>
+                <div class="form-group-edit">
+                    <label>الاسم</label>
+                    <input type="text" id="editName" placeholder="الاسم">
+                </div>
+                
+                <div class="form-group-edit">
+                    <label>النبذة التعريفية</label>
+                    <textarea id="editBio" placeholder="النبذة التعريفية" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group-edit">
+                    <label>الموقع</label>
+                    <input type="text" id="editLocation" placeholder="الموقع">
+                </div>
+                
+                <div class="form-group-edit">
+                    <label>الموقع الإلكتروني</label>
+                    <input type="text" id="editWebsite" placeholder="الموقع الإلكتروني">
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- حاوية الإشعارات المنبثقة -->
-    <div class="toast-container" id="toastContainer"></div>
     
-    <!-- زر العودة للأعلى -->
-    <button class="scroll-top-btn" id="scrollTopBtn" onclick="scrollToTop()">
-        <i class="fas fa-arrow-up"></i>
-    </button>
-    
-    <!-- نافذة عرض الصورة -->
-    <div class="image-modal" id="imageModal" onclick="closeImageModal()">
-        <span class="image-modal-close">&times;</span>
-        <img id="modalImage" src="">
+    <!-- ========== نافذة عرض الملف الشخصي ========== -->
+    <div class="modal-overlay" id="profileViewModal">
+        <div class="modal profile-view-modal">
+            <div class="modal-header">
+                <button class="modal-close" onclick="closeProfileViewModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+                <h2 id="viewProfileName">الملف الشخصي</h2>
+            </div>
+            <div class="modal-body" style="padding: 0;">
+                <div class="profile-cover-view" id="viewCoverImage"></div>
+                
+                <div class="profile-header-view">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div class="profile-avatar-view" id="viewAvatar"></div>
+                        <div class="profile-actions-view">
+                            <button class="follow-btn-small" id="viewFollowBtn" onclick="toggleFollowFromView()">متابعة</button>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-name-view">
+                        <span id="viewName"></span>
+                        <i class="fas fa-check-circle verified-icon" id="viewVerifiedBadge" style="display: none;"></i>
+                    </div>
+                    <div class="profile-username-view" id="viewUsername"></div>
+                    
+                    <div class="profile-bio-view" id="viewBio"></div>
+                    
+                    <div class="profile-meta-view">
+                        <span><i class="fas fa-map-marker-alt"></i> <span id="viewLocation"></span></span>
+                        <span><i class="fas fa-link"></i> <span id="viewWebsite"></span></span>
+                        <span><i class="far fa-calendar-alt"></i> انضم في <span id="viewJoinDate"></span></span>
+                    </div>
+                    
+                    <div class="profile-stats-view">
+                        <div class="stat-item" onclick="showFollowingList()">
+                            <span class="stat-number" id="viewFollowing">0</span>
+                            <span class="stat-label">يتابع</span>
+                        </div>
+                        <div class="stat-item" onclick="showFollowersList()">
+                            <span class="stat-number" id="viewFollowers">0</span>
+                            <span class="stat-label">متابع</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- تبويبات الملف الشخصي -->
+                <div class="tabs-header">
+                    <div class="tab-header active">التغريدات</div>
+                    <div class="tab-header">الردود</div>
+                    <div class="tab-header">الوسائط</div>
+                    <div class="tab-header">الإعجابات</div>
+                </div>
+                
+                <div id="profileTweetsContainer" style="padding: 0;"></div>
+            </div>
+        </div>
     </div>
-
+    
+    <!-- ========== لوحة تحكم المدير ========== -->
+    <div class="modal-overlay" id="adminPanelModal">
+        <div class="modal admin-panel-modal">
+            <div class="modal-header">
+                <button class="modal-close" onclick="closeAdminPanel()">
+                    <i class="fas fa-times"></i>
+                </button>
+                <h2>لوحة تحكم المدير</h2>
+                <div></div>
+            </div>
+            
+            <div class="admin-tabs">
+                <div class="admin-tab active" onclick="switchAdminTab('users')">المستخدمين</div>
+                <div class="admin-tab" onclick="switchAdminTab('content')">المحتوى</div>
+                <div class="admin-tab" onclick="switchAdminTab('reports')">البلاغات</div>
+                <div class="admin-tab" onclick="switchAdminTab('stats')">الإحصائيات</div>
+            </div>
+            
+            <div class="modal-body">
+                <!-- تبويب المستخدمين -->
+                <div class="admin-tab-content active" id="adminUsersTab">
+                    <div class="search-box" style="margin-bottom: 16px;">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="بحث عن مستخدم..." id="adminUserSearch" oninput="searchAdminUsers()">
+                    </div>
+                    <div id="adminUsersList"></div>
+                </div>
+                
+                <!-- تبويب المحتوى -->
+                <div class="admin-tab-content" id="adminContentTab">
+                    <div id="adminContentList"></div>
+                </div>
+                
+                <!-- تبويب البلاغات -->
+                <div class="admin-tab-content" id="adminReportsTab">
+                    <div id="adminReportsList"></div>
+                </div>
+                
+                <!-- تبويب الإحصائيات -->
+                <div class="admin-tab-content" id="adminStatsTab">
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="value" id="statTotalUsers">0</div>
+                            <div class="label">مستخدم</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value" id="statTotalTweets">0</div>
+                            <div class="label">تغريدة</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value" id="statBannedUsers">0</div>
+                            <div class="label">محظور</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value" id="statVerifiedUsers">0</div>
+                            <div class="label">موثق</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value" id="statOnlineUsers">0</div>
+                            <div class="label">متصل</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value" id="statReports">0</div>
+                            <div class="label">بلاغ</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ========== نافذة الرسائل ========== -->
+    <div class="modal-overlay" id="messagesModal">
+        <div class="modal messages-modal">
+            <div class="messages-header">
+                <button class="modal-close" onclick="closeMessagesModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+                <h3>الرسائل</h3>
+                <i class="fas fa-edit" style="cursor: pointer;" onclick="newMessage()"></i>
+            </div>
+            
+            <div class="search-box" style="margin: 12px 16px;">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="بحث في الرسائل">
+            </div>
+            
+            <div class="messages-list" id="messagesList">
+                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <i class="far fa-envelope" style="font-size: 48px; margin-bottom: 16px;"></i>
+                    <h3>مرحباً بك في الرسائل</h3>
+                    <p>تواصل مع أصدقائك عبر الرسائل الخاصة</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Firebase Config -->
     <script src="firebase-config.js"></script>
     <!-- Main Script -->
