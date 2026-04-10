@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>X · منصة التواصل الاجتماعي</title>
+    <meta name="theme-color" content="#000000">
+    <meta name="description" content="X - ماذا يحدث الآن">
+    
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    
+    <!-- Agora SDK -->
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.22.0.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            min-height: 100vh;
+            color: #e7e9ea;
+            overflow-x: hidden;
+        }
+        
+        body.light-mode { background: #fff; color: #0f1419; }
+        body.light-mode .sidebar { border-color: #eff3f4; }
+        body.light-mode .post-card { border-color: #eff3f4; }
+        body.light-mode .post-card:hover { background: #f7f9f9; }
+        body.light-mode .trending-sidebar { background: #f7f9f9; }
+        body.light-mode .nav-item { color: #0f1419; }
+        body.light-mode .nav-item:hover { background: #e8e8e8; }
+        body.light-mode .post-action { color: #536471; }
+        body.light-mode .compose-content,
+        body.light-mode .chat-panel,
+        body.light-mode .modal-content { background: #fff; color: #0f1419; border-color: #eff3f4; }
+        body.light-mode .chat-input { background: #eff3f4; border-color: #cfd9de; color: #0f1419; }
+        body.light-mode .message-bubble { background: #eff3f4; color: #0f1419; }
+        body.light-mode .poll-option { background: #f7f9f9; }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #2f3336; border-radius: 10px; }
+        body.light-mode ::-webkit-scrollbar-track { background: #fff; }
+        body.light-mode ::-webkit-scrollbar-thumb { background: #cfd9de; }
+        
+        /* Layout */
+        #mainApp { display: none; min-height: 100vh; }
+        
+        .app-layout {
+            display: flex;
+            max-width: 1300px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+        
+        /* Left Sidebar */
+        .sidebar {
+            width: 275px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #2f3336;
+        }
+        
+        .logo-wrapper { padding: 12px; }
+        .logo-svg { width: 32px; height: 32px; fill: #e7e9ea; }
+        body.light-mode .logo-svg { fill: #0f1419; }
+        
+        .nav-menu { flex: 1; }
+        .nav-item {
+            display: flex; align-items: center; gap: 20px; padding: 12px;
+            border-radius: 9999px; color: #e7e9ea; font-size: 20px;
+            font-weight: 400; cursor: pointer; transition: background 0.2s;
+            margin-bottom: 4px; border: none; background: none; width: 100%;
+            font-family: 'Inter', sans-serif;
+        }
+        .nav-item:hover { background: rgba(231, 233, 234, 0.1); }
+        .nav-item span { font-size: 20px; font-weight: 400; }
+        .nav-item i { width: 26px; text-align: center; }
+        .nav-item.active { font-weight: 700; }
+        
+        .post-btn {
+            background: #1d9bf0; color: white; border: none; border-radius: 9999px;
+            padding: 16px; font-size: 18px; font-weight: 700; cursor: pointer;
+            margin: 16px 0; width: 90%; transition: background 0.2s;
+        }
+        .post-btn:hover { background: #1a8cd8; }
+        
+        .user-profile-mini {
+            display: flex; align-items: center; gap: 12px; padding: 12px;
+            border-radius: 9999px; cursor: pointer; margin-top: auto;
+        }
+        .user-profile-mini:hover { background: rgba(231, 233, 234, 0.1); }
+        .user-avatar-mini {
+            width: 40px; height: 40px; border-radius: 50%; background: #1d9bf0;
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .user-avatar-mini img { width: 100%; height: 100%; object-fit: cover; }
+        .user-info-mini { flex: 1; }
+        .user-name-mini { font-weight: 700; font-size: 15px; }
+        .user-handle-mini { color: #71767b; font-size: 14px; }
+        
+        /* Main Feed */
+        .feed-container {
+            width: 600px;
+            border-left: 1px solid #2f3336;
+            border-right: 1px solid #2f3336;
+            min-height: 100vh;
+        }
+        
+        .feed-header {
+            position: sticky; top: 0; background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(12px); padding: 12px 16px; border-bottom: 1px solid #2f3336;
+            z-index: 50;
+        }
+        body.light-mode .feed-header { background: rgba(255, 255, 255, 0.85); }
+        .feed-header h2 { font-size: 20px; font-weight: 700; }
+        
+        /* Post Card */
+        .post-card {
+            padding: 12px 16px; border-bottom: 1px solid #2f3336;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .post-card:hover { background: rgba(255, 255, 255, 0.03); }
+        .post-card.pinned { border-right: 3px solid #1d9bf0; }
+        
+        .post-header { display: flex; gap: 12px; }
+        .post-avatar {
+            width: 48px; height: 48px; border-radius: 50%; background: #1d9bf0;
+            overflow: hidden; flex-shrink: 0;
+        }
+        .post-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .post-content { flex: 1; }
+        .post-user-row {
+            display: flex; align-items: center; gap: 4px; margin-bottom: 4px;
+        }
+        .post-username { font-weight: 700; }
+        .post-handle, .post-time { color: #71767b; font-size: 15px; }
+        .verified-badge { color: #1d9bf0; font-size: 18px; margin-right: 2px; }
+        .post-text { font-size: 15px; line-height: 1.5; margin-bottom: 12px; }
+        .post-hashtags { color: #1d9bf0; cursor: pointer; }
+        .post-media { margin: 12px 0; border-radius: 16px; overflow: hidden; border: 1px solid #2f3336; }
+        .post-media img, .post-media video { width: 100%; max-height: 500px; object-fit: cover; display: block; }
+        
+        .post-actions {
+            display: flex; justify-content: space-between; margin-top: 12px;
+            max-width: 425px; color: #71767b;
+        }
+        .post-action {
+            display: flex; align-items: center; gap: 8px; cursor: pointer;
+            background: none; border: none; color: #71767b; font-size: 14px;
+            transition: all 0.2s; padding: 6px;
+        }
+        .post-action i { font-size: 18px; }
+        .post-action:hover { color: #1d9bf0; }
+        .post-action.liked { color: #f91880; }
+        .post-action.saved { color: #1d9bf0; }
+        
+        .post-likes, .post-views {
+            color: #71767b; font-size: 13px; margin-top: 8px;
+        }
+        
+        /* Right Sidebar */
+        .trending-sidebar {
+            width: 350px; position: sticky; top: 0; height: 100vh;
+            padding: 12px 16px; overflow-y: auto;
+        }
+        
+        .search-box {
+            background: #202327; border-radius: 9999px; padding: 12px 16px;
+            margin-bottom: 16px; display: flex; align-items: center; gap: 12px;
+            border: 1px solid transparent; transition: border 0.2s;
+        }
+        body.light-mode .search-box { background: #eff3f4; }
+        .search-box:focus-within { border-color: #1d9bf0; background: #000; }
+        .search-box i { color: #71767b; }
+        .search-box input {
+            background: transparent; border: none; color: #e7e9ea;
+            font-size: 15px; outline: none; width: 100%;
+        }
+        
+        .trending-card {
+            background: #16181c; border-radius: 16px; overflow: hidden;
+            margin-bottom: 16px;
+        }
+        body.light-mode .trending-card { background: #f7f9f9; }
+        .trending-header { padding: 12px 16px; font-size: 20px; font-weight: 800; }
+        .trending-item {
+            padding: 12px 16px; cursor: pointer; transition: background 0.2s;
+            border-bottom: 1px solid #2f3336;
+        }
+        .trending-item:hover { background: rgba(255, 255, 255, 0.03); }
+        .trending-category { color: #71767b; font-size: 13px; }
+        .trending-hashtag { font-weight: 700; font-size: 15px; margin: 2px 0; }
+        .trending-count { color: #71767b; font-size: 13px; }
+        
+        /* Compose Modal */
+        .compose-modal {
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px); z-index: 200; display: flex;
+            align-items: center; justify-content: center;
+            opacity: 0; visibility: hidden; transition: all 0.2s;
+        }
+        .compose-modal.open { opacity: 1; visibility: visible; }
+        .compose-content {
+            background: #000; border-radius: 16px; width: 90%; max-width: 600px;
+            max-height: 90vh; overflow-y: auto; border: 1px solid #2f3336;
+        }
+        .compose-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 16px; border-bottom: 1px solid #2f3336;
+        }
+        .compose-header button {
+            background: none; border: none; color: #e7e9ea;
+            font-size: 20px; cursor: pointer;
+        }
+        .compose-body { padding: 16px; }
+        .compose-textarea {
+            width: 100%; min-height: 120px; background: transparent;
+            border: none; color: #e7e9ea; font-size: 18px; outline: none;
+            resize: none; font-family: 'Inter', sans-serif;
+        }
+        .compose-textarea::placeholder { color: #536471; }
+        
+        .media-preview { margin: 12px 0; position: relative; }
+        .media-preview.active { display: block; }
+        .preview-container { position: relative; border-radius: 16px; overflow: hidden; }
+        .preview-container img, .preview-container video {
+            width: 100%; max-height: 300px; object-fit: cover;
+        }
+        .remove-media {
+            position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.7);
+            color: white; border-radius: 50%; width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        
+        .compose-tools {
+            display: flex; gap: 16px; padding: 12px 0; border-top: 1px solid #2f3336;
+        }
+        .compose-tool {
+            background: none; border: none; color: #1d9bf0; font-size: 20px;
+            cursor: pointer; padding: 8px; border-radius: 50%;
+        }
+        .compose-tool:hover { background: rgba(29, 155, 240, 0.1); }
+        
+        .publish-btn {
+            background: #1d9bf0; color: white; border: none; border-radius: 9999px;
+            padding: 10px 20px; font-size: 15px; font-weight: 700; cursor: pointer;
+        }
+        .publish-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Panels */
+        .chat-panel {
+            position: fixed; inset: 0; background: #000; z-index: 400;
+            transform: translateX(100%); transition: transform 0.3s ease;
+            display: flex; flex-direction: column;
+        }
+        .chat-panel.open { transform: translateX(0); }
+        .chat-header {
+            padding: 12px 16px; border-bottom: 1px solid #2f3336;
+            display: flex; align-items: center; gap: 16px;
+        }
+        .chat-header button {
+            background: none; border: none; color: #e7e9ea;
+            font-size: 20px; cursor: pointer;
+        }
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 16px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .message-bubble {
+            background: #1d9bf0; color: white; padding: 10px 14px;
+            border-radius: 18px; max-width: 70%;
+        }
+        .message-bubble.received { background: #2f3336; align-self: flex-start; }
+        .message-bubble.sent { background: #1d9bf0; align-self: flex-end; }
+        
+        .chat-input-area {
+            display: flex; gap: 12px; padding: 12px; border-top: 1px solid #2f3336;
+            align-items: center;
+        }
+        .chat-input {
+            flex: 1; background: #202327; border: 1px solid #2f3336;
+            border-radius: 9999px; padding: 12px 16px; color: #e7e9ea;
+            outline: none; font-size: 15px;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
+            z-index: 600; display: flex; align-items: center; justify-content: center;
+            opacity: 0; visibility: hidden; transition: all 0.2s;
+        }
+        .modal-overlay.open { opacity: 1; visibility: visible; }
+        .modal-content {
+            background: #000; border-radius: 16px; padding: 24px; width: 90%;
+            max-width: 400px; border: 1px solid #2f3336;
+        }
+        
+        /* Toast */
+        #customToast {
+            position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+            background: #1d9bf0; color: white; padding: 12px 24px;
+            border-radius: 9999px; z-index: 1100; font-size: 14px;
+            opacity: 0; transition: opacity 0.3s; white-space: nowrap;
+        }
+        
+        /* Skeleton */
+        .skeleton-post { padding: 16px; border-bottom: 1px solid #2f3336; }
+        .skeleton { background: #202327; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        /* Responsive */
+        @media (max-width: 1000px) {
+            .trending-sidebar { display: none; }
+            .sidebar { width: 88px; }
+            .nav-item span { display: none; }
+            .post-btn { padding: 12px; font-size: 20px; }
+            .user-info-mini { display: none; }
+        }
+        @media (max-width: 688px) {
+            .sidebar { display: none; }
+            .feed-container { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="initLoader" style="position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center;">
+    <svg viewBox="0 0 24 24" style="width: 48px; height: 48px; fill: #e7e9ea;"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231z"/></svg>
+</div>
+
+<div id="mainApp">
+    <div class="app-layout">
+        <!-- Left Sidebar -->
+        <div class="sidebar">
+            <div class="logo-wrapper">
+                <svg viewBox="0 0 24 24" class="logo-svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231z"/></svg>
+            </div>
+            <div class="nav-menu">
+                <button class="nav-item active" onclick="switchTab('home')"><i class="fa-solid fa-house"></i> <span>الرئيسية</span></button>
+                <button class="nav-item" onclick="openSearch()"><i class="fa-solid fa-magnifying-glass"></i> <span>استكشاف</span></button>
+                <button class="nav-item" onclick="openNotifications()"><i class="fa-regular fa-bell"></i> <span>الإشعارات</span></button>
+                <button class="nav-item" onclick="openConversations()"><i class="fa-regular fa-envelope"></i> <span>الرسائل</span></button>
+                <button class="nav-item" onclick="openSavedPosts()"><i class="fa-regular fa-bookmark"></i> <span>المحفوظات</span></button>
+                <button class="nav-item" onclick="openMyProfile()"><i class="fa-regular fa-user"></i> <span>الملف الشخصي</span></button>
+            </div>
+            <button class="post-btn" onclick="openCompose()">نشر</button>
+            <div class="user-profile-mini" onclick="openMyProfile()">
+                <div class="user-avatar-mini" id="sidebarAvatar"></div>
+                <div class="user-info-mini">
+                    <div class="user-name-mini" id="sidebarName"></div>
+                    <div class="user-handle-mini" id="sidebarHandle"></div>
+                </div>
+                <i class="fa-solid fa-ellipsis" onclick="event.stopPropagation(); showLogoutMenu()"></i>
+            </div>
+        </div>
+        
+        <!-- Main Feed -->
+        <div class="feed-container" id="feedContainer">
+            <div class="feed-header"><h2>الرئيسية</h2></div>
+            <div id="postsContainer"></div>
+        </div>
+        
+        <!-- Right Sidebar -->
+        <div class="trending-sidebar">
+            <div class="search-box" onclick="openSearch()">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="بحث في X" readonly>
+            </div>
+            <div class="trending-card">
+                <div class="trending-header">ما يحدث الآن</div>
+                <div id="trendingList"></div>
+            </div>
+            <div class="trending-card">
+                <div class="trending-header">من يمكن متابعته</div>
+                <div id="suggestedUsers"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Compose Modal -->
+    <div id="composeModal" class="compose-modal">
+        <div class="compose-content">
+            <div class="compose-header">
+                <button onclick="closeCompose()">&times;</button>
+                <button class="publish-btn" onclick="createPost()">نشر</button>
+            </div>
+            <div class="compose-body">
+                <textarea id="postText" class="compose-textarea" placeholder="ما الذي يحدث؟"></textarea>
+                <div id="mediaPreview" class="media-preview">
+                    <div class="preview-container">
+                        <img id="previewImage" style="display: none;">
+                        <video id="previewVideo" controls style="display: none;"></video>
+                        <div class="remove-media" onclick="removeSelectedMedia()"><i class="fa-solid fa-xmark"></i></div>
+                    </div>
+                </div>
+                <div id="uploadProgress" style="display: none;">
+                    <div style="background: #2f3336; height: 4px; border-radius: 4px;">
+                        <div id="progressFill" style="width: 0%; height: 100%; background: #1d9bf0; border-radius: 4px;"></div>
+                    </div>
+                </div>
+                <div class="compose-tools">
+                    <button class="compose-tool" onclick="document.getElementById('postImage').click()"><i class="fa-regular fa-image"></i></button>
+                    <button class="compose-tool" onclick="document.getElementById('postVideo').click()"><i class="fa-solid fa-video"></i></button>
+                    <button class="compose-tool" onclick="addPollToCompose()"><i class="fa-solid fa-chart-simple"></i></button>
+                    <button class="compose-tool" onclick="toggleTheme()"><i class="fa-regular fa-moon"></i></button>
+                </div>
+                <input type="file" id="postImage" accept="image/*" style="display: none;" onchange="handleFileSelect(this, 'image')">
+                <input type="file" id="postVideo" accept="video/*" style="display: none;" onchange="handleFileSelect(this, 'video')">
+                <div id="pollBuilder" style="display: none; margin-top: 12px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Comments Panel -->
+    <div id="commentsPanel" class="chat-panel">
+        <div class="chat-header">
+            <button onclick="closeComments()"><i class="fa-solid fa-arrow-left"></i></button>
+            <h3>الردود</h3>
+        </div>
+        <div id="commentsList" class="chat-messages"></div>
+        <div class="chat-input-area">
+            <input type="text" id="commentInput" class="chat-input" placeholder="أضف رداً...">
+            <button onclick="addComment()" style="background: none; border: none; color: #1d9bf0; font-size: 20px;"><i class="fa-regular fa-paper-plane"></i></button>
+        </div>
+    </div>
+    
+    <!-- Chat Panel -->
+    <div id="chatPanel" class="chat-panel">
+        <div class="chat-header">
+            <button onclick="closeChat()"><i class="fa-solid fa-arrow-left"></i></button>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="user-avatar-mini" id="chatAvatar"></div>
+                <div><h3 id="chatUserName">محادثة</h3></div>
+            </div>
+        </div>
+        <div id="chatMessages" class="chat-messages"></div>
+        <div class="chat-input-area">
+            <input type="text" id="chatMessageInput" class="chat-input" placeholder="اكتب رسالة...">
+            <button onclick="sendChatMessage()" style="background: none; border: none; color: #1d9bf0;"><i class="fa-regular fa-paper-plane"></i></button>
+        </div>
+    </div>
+    
+    <!-- Profile Panel -->
+    <div id="profilePanel" class="chat-panel">
+        <div class="chat-header">
+            <button onclick="closeProfile()"><i class="fa-solid fa-arrow-left"></i></button>
+            <h3>الملف الشخصي</h3>
+        </div>
+        <div style="overflow-y: auto;">
+            <div id="profileCover" style="height: 200px; background: #1d9bf0;"></div>
+            <div style="padding: 12px 16px;">
+                <div style="display: flex; justify-content: space-between; margin-top: -60px;">
+                    <div id="profileAvatarLarge" style="width: 120px; height: 120px; border-radius: 50%; background: #1d9bf0; border: 4px solid #000; overflow: hidden;"></div>
+                    <div id="profileButtons"></div>
+                </div>
+                <div id="profileName" style="font-size: 20px; font-weight: 800; margin-top: 12px;"></div>
+                <div id="profileHandle" style="color: #71767b; margin-bottom: 12px;"></div>
+                <div id="profileBio" style="margin-bottom: 12px;"></div>
+                <div style="display: flex; gap: 20px; color: #71767b;">
+                    <span><strong style="color: #e7e9ea;" id="profileFollowingCount">0</strong> يتـابع</span>
+                    <span><strong style="color: #e7e9ea;" id="profileFollowersCount">0</strong> متـابع</span>
+                </div>
+            </div>
+            <div style="display: flex; border-bottom: 1px solid #2f3336;">
+                <button class="profile-tab active" style="flex: 1; padding: 16px; background: none; border: none; color: #e7e9ea; font-weight: 700;" onclick="loadProfilePosts(currentProfileUser)">المنشورات</button>
+                <button class="profile-tab" style="flex: 1; padding: 16px; background: none; border: none; color: #71767b;" onclick="loadProfileMedia(currentProfileUser)">الوسائط</button>
+            </div>
+            <div id="profilePostsGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;"></div>
+        </div>
+    </div>
+    
+    <!-- Other Panels -->
+    <div id="conversationsPanel" class="chat-panel"><div class="chat-header"><button onclick="closeConversations()"><i class="fa-solid fa-arrow-left"></i></button><h3>الرسائل</h3></div><div id="conversationsList" style="padding: 12px;"></div></div>
+    <div id="notificationsPanel" class="chat-panel"><div class="chat-header"><button onclick="closeNotifications()"><i class="fa-solid fa-arrow-left"></i></button><h3>الإشعارات</h3></div><div id="notificationsList" style="padding: 12px;"></div></div>
+    <div id="searchPanel" class="chat-panel"><div class="chat-header"><button onclick="closeSearch()"><i class="fa-solid fa-arrow-left"></i></button><h3>بحث</h3></div><input type="text" id="searchInput" class="chat-input" style="margin: 12px; width: auto;" placeholder="بحث..."><div id="searchResults" style="padding: 12px;"></div></div>
+    <div id="savedPostsPanel" class="chat-panel"><div class="chat-header"><button onclick="closeSavedPosts()"><i class="fa-solid fa-arrow-left"></i></button><h3>المحفوظات</h3></div><div id="savedPostsGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;"></div></div>
+    <div id="adminPanel" class="chat-panel"><div class="chat-header"><button onclick="closeAdmin()"><i class="fa-solid fa-arrow-left"></i></button><h3>لوحة التحكم</h3></div><div style="padding: 16px;"><div id="adminStats" style="display: flex; gap: 12px;"></div><h4>الكلمات الممنوعة</h4><div id="adminBadWordsList"></div><h4 style="margin-top: 16px;">المستخدمين</h4><div id="adminUsersList"></div></div></div>
+    
+    <div id="customToast"></div>
+</div>
+
+<script src="firebase-config.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
